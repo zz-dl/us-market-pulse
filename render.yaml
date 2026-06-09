@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: us-market-pulse
+    runtime: python
+    branch: master
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+  - type: cron
+    name: us-market-pulse-daily-forecast
+    runtime: python
+    schedule: "30 6 * * 1-5"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/render_cron_call.py daily-run
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: US_MARKET_PULSE_BASE_URL
+        value: https://us-market-pulse.onrender.com

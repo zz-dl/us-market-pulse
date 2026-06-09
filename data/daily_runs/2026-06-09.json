@@ -1,0 +1,558 @@
+{
+  "ok": true,
+  "run_date": "2026-06-09",
+  "run_at_beijing": "2026-06-09T18:56:22+08:00",
+  "scheduled_for": "14:30 Asia/Shanghai",
+  "data_source": "Yahoo Chart API primary, Stooq fallback",
+  "forecasts": [
+    {
+      "symbol": "QQQ",
+      "label": "Nasdaq-100",
+      "proxy_note": "QQQ is used as the tradeable proxy for Nasdaq-100",
+      "as_of": "2026-06-08",
+      "direction": "neutral",
+      "score": -0.033,
+      "confidence": 48.4,
+      "last_close": 716.07,
+      "features": {
+        "one_day": 1.5616,
+        "five_day": -3.5908,
+        "twenty_day": 0.6805,
+        "volatility_20d": 22.5939,
+        "range_pos_20d": 38.9888,
+        "gap_proxy": 1.8084,
+        "last_close": 716.07,
+        "last_date": "2026-06-08"
+      },
+      "drivers": [
+        {
+          "label": "5日动量",
+          "value": -3.591,
+          "effect": "bearish",
+          "contribution": -1.0
+        },
+        {
+          "label": "1日动量",
+          "value": 1.562,
+          "effect": "bullish",
+          "contribution": 0.416
+        },
+        {
+          "label": "隔夜缺口代理",
+          "value": 1.808,
+          "effect": "bullish",
+          "contribution": 0.301
+        },
+        {
+          "label": "20日趋势",
+          "value": 0.681,
+          "effect": "bullish",
+          "contribution": 0.25
+        },
+        {
+          "label": "20日区间位置",
+          "value": 39.0,
+          "effect": "neutral",
+          "contribution": 0.0
+        }
+      ],
+      "risks": [],
+      "invalidation": [
+        "若盘前/期货跌破参考收盘 710.34，多头判断失效",
+        "若盘前/期货突破参考收盘 721.80，空头判断失效"
+      ],
+      "display": "纳斯达克",
+      "data_meta": {
+        "symbol": "QQQ",
+        "source": "yahoo_chart",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?period1=0&period2=1781002582&interval=1d&events=history&includeAdjustedClose=true",
+        "rows": 6854,
+        "start": "1999-03-10",
+        "end": "2026-06-08",
+        "saved_to": "F:\\USMarketPulse\\data\\prices\\QQQ.csv",
+        "updated_at": "2026-06-09T10:56:23+00:00"
+      }
+    },
+    {
+      "symbol": "SPY",
+      "label": "S&P 500",
+      "proxy_note": "SPY is used as the tradeable proxy for S&P 500",
+      "as_of": "2026-06-08",
+      "direction": "bearish",
+      "score": -0.578,
+      "confidence": 54.9,
+      "last_close": 739.22,
+      "features": {
+        "one_day": 0.2264,
+        "five_day": -2.547,
+        "twenty_day": 0.2169,
+        "volatility_20d": 12.7967,
+        "range_pos_20d": 26.6364,
+        "gap_proxy": 0.7877,
+        "last_close": 739.22,
+        "last_date": "2026-06-08"
+      },
+      "drivers": [
+        {
+          "label": "5日动量",
+          "value": -2.547,
+          "effect": "bearish",
+          "contribution": -0.849
+        },
+        {
+          "label": "隔夜缺口代理",
+          "value": 0.788,
+          "effect": "bullish",
+          "contribution": 0.131
+        },
+        {
+          "label": "20日趋势",
+          "value": 0.217,
+          "effect": "bullish",
+          "contribution": 0.08
+        },
+        {
+          "label": "1日动量",
+          "value": 0.226,
+          "effect": "bullish",
+          "contribution": 0.06
+        },
+        {
+          "label": "20日区间位置",
+          "value": 26.6,
+          "effect": "neutral",
+          "contribution": 0.0
+        }
+      ],
+      "risks": [],
+      "invalidation": [
+        "若盘前/期货跌破参考收盘 733.31，多头判断失效",
+        "若盘前/期货突破参考收盘 745.13，空头判断失效"
+      ],
+      "display": "标普 500",
+      "data_meta": {
+        "symbol": "SPY",
+        "source": "yahoo_chart",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1=0&period2=1781002588&interval=1d&events=history&includeAdjustedClose=true",
+        "rows": 8396,
+        "start": "1993-01-29",
+        "end": "2026-06-08",
+        "saved_to": "F:\\USMarketPulse\\data\\prices\\SPY.csv",
+        "updated_at": "2026-06-09T10:56:29+00:00"
+      }
+    }
+  ],
+  "backtests": [
+    {
+      "symbol": "QQQ",
+      "label": "Nasdaq-100",
+      "observations": 6793,
+      "trades": 5503,
+      "win_rate": 52.06,
+      "avg_next_return": 0.0629,
+      "bullish_count": 3613,
+      "bearish_count": 1890,
+      "neutral_count": 1290,
+      "recent_signals": [
+        {
+          "date": "2026-05-20",
+          "next_date": "2026-05-21",
+          "direction": "bullish",
+          "confidence": 70.9,
+          "next_return_pct": 0.191,
+          "win": true
+        },
+        {
+          "date": "2026-05-21",
+          "next_date": "2026-05-22",
+          "direction": "bullish",
+          "confidence": 61.9,
+          "next_return_pct": 0.424,
+          "win": true
+        },
+        {
+          "date": "2026-05-22",
+          "next_date": "2026-05-26",
+          "direction": "bullish",
+          "confidence": 72.6,
+          "next_return_pct": 1.776,
+          "win": true
+        },
+        {
+          "date": "2026-05-26",
+          "next_date": "2026-05-27",
+          "direction": "bullish",
+          "confidence": 82,
+          "next_return_pct": -0.114,
+          "win": false
+        },
+        {
+          "date": "2026-05-27",
+          "next_date": "2026-05-28",
+          "direction": "bullish",
+          "confidence": 77.8,
+          "next_return_pct": 0.843,
+          "win": true
+        },
+        {
+          "date": "2026-05-28",
+          "next_date": "2026-05-29",
+          "direction": "bullish",
+          "confidence": 80.2,
+          "next_return_pct": 0.368,
+          "win": true
+        },
+        {
+          "date": "2026-05-29",
+          "next_date": "2026-06-01",
+          "direction": "bullish",
+          "confidence": 79.2,
+          "next_return_pct": 0.6,
+          "win": true
+        },
+        {
+          "date": "2026-06-01",
+          "next_date": "2026-06-02",
+          "direction": "bullish",
+          "confidence": 79.0,
+          "next_return_pct": 0.46,
+          "win": true
+        },
+        {
+          "date": "2026-06-02",
+          "next_date": "2026-06-03",
+          "direction": "bullish",
+          "confidence": 75.5,
+          "next_return_pct": -0.261,
+          "win": false
+        },
+        {
+          "date": "2026-06-03",
+          "next_date": "2026-06-04",
+          "direction": "bullish",
+          "confidence": 73.0,
+          "next_return_pct": -0.484,
+          "win": false
+        },
+        {
+          "date": "2026-06-04",
+          "next_date": "2026-06-05",
+          "direction": "bullish",
+          "confidence": 64.2,
+          "next_return_pct": -4.8,
+          "win": false
+        },
+        {
+          "date": "2026-06-05",
+          "next_date": "2026-06-08",
+          "direction": "bearish",
+          "confidence": 70.2,
+          "next_return_pct": 1.562,
+          "win": false
+        }
+      ],
+      "annual": [
+        {
+          "year": "2015",
+          "trades": 192,
+          "win_rate": 46.35,
+          "avg_signal_return": -0.1006
+        },
+        {
+          "year": "2016",
+          "trades": 192,
+          "win_rate": 50.52,
+          "avg_signal_return": -0.039
+        },
+        {
+          "year": "2017",
+          "trades": 206,
+          "win_rate": 58.74,
+          "avg_signal_return": 0.0402
+        },
+        {
+          "year": "2018",
+          "trades": 195,
+          "win_rate": 46.67,
+          "avg_signal_return": -0.0047
+        },
+        {
+          "year": "2019",
+          "trades": 219,
+          "win_rate": 56.62,
+          "avg_signal_return": 0.0226
+        },
+        {
+          "year": "2020",
+          "trades": 215,
+          "win_rate": 56.74,
+          "avg_signal_return": 0.0051
+        },
+        {
+          "year": "2021",
+          "trades": 212,
+          "win_rate": 49.53,
+          "avg_signal_return": -0.092
+        },
+        {
+          "year": "2022",
+          "trades": 191,
+          "win_rate": 47.12,
+          "avg_signal_return": -0.0358
+        },
+        {
+          "year": "2023",
+          "trades": 205,
+          "win_rate": 50.73,
+          "avg_signal_return": 0.0799
+        },
+        {
+          "year": "2024",
+          "trades": 208,
+          "win_rate": 54.33,
+          "avg_signal_return": -0.0138
+        },
+        {
+          "year": "2025",
+          "trades": 214,
+          "win_rate": 54.67,
+          "avg_signal_return": 0.0168
+        },
+        {
+          "year": "2026",
+          "trades": 85,
+          "win_rate": 51.76,
+          "avg_signal_return": 0.0248
+        }
+      ],
+      "display": "纳斯达克",
+      "data_meta": {
+        "symbol": "QQQ",
+        "source": "yahoo_chart",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?period1=0&period2=1781002582&interval=1d&events=history&includeAdjustedClose=true",
+        "rows": 6854,
+        "start": "1999-03-10",
+        "end": "2026-06-08",
+        "saved_to": "F:\\USMarketPulse\\data\\prices\\QQQ.csv",
+        "updated_at": "2026-06-09T10:56:23+00:00"
+      }
+    },
+    {
+      "symbol": "SPY",
+      "label": "S&P 500",
+      "observations": 8335,
+      "trades": 6632,
+      "win_rate": 49.82,
+      "avg_next_return": 0.0363,
+      "bullish_count": 4487,
+      "bearish_count": 2145,
+      "neutral_count": 1703,
+      "recent_signals": [
+        {
+          "date": "2026-05-20",
+          "next_date": "2026-05-21",
+          "direction": "bullish",
+          "confidence": 68.6,
+          "next_return_pct": 0.198,
+          "win": true
+        },
+        {
+          "date": "2026-05-21",
+          "next_date": "2026-05-22",
+          "direction": "bullish",
+          "confidence": 62.4,
+          "next_return_pct": 0.393,
+          "win": true
+        },
+        {
+          "date": "2026-05-22",
+          "next_date": "2026-05-26",
+          "direction": "bullish",
+          "confidence": 71.1,
+          "next_return_pct": 0.664,
+          "win": true
+        },
+        {
+          "date": "2026-05-26",
+          "next_date": "2026-05-27",
+          "direction": "bullish",
+          "confidence": 75.2,
+          "next_return_pct": -0.017,
+          "win": false
+        },
+        {
+          "date": "2026-05-27",
+          "next_date": "2026-05-28",
+          "direction": "bullish",
+          "confidence": 74.5,
+          "next_return_pct": 0.552,
+          "win": true
+        },
+        {
+          "date": "2026-05-28",
+          "next_date": "2026-05-29",
+          "direction": "bullish",
+          "confidence": 74.3,
+          "next_return_pct": 0.249,
+          "win": true
+        },
+        {
+          "date": "2026-05-29",
+          "next_date": "2026-06-01",
+          "direction": "bullish",
+          "confidence": 74.0,
+          "next_return_pct": 0.272,
+          "win": true
+        },
+        {
+          "date": "2026-06-01",
+          "next_date": "2026-06-02",
+          "direction": "bullish",
+          "confidence": 72.9,
+          "next_return_pct": 0.136,
+          "win": true
+        },
+        {
+          "date": "2026-06-02",
+          "next_date": "2026-06-03",
+          "direction": "bullish",
+          "confidence": 70.2,
+          "next_return_pct": -0.702,
+          "win": false
+        },
+        {
+          "date": "2026-06-03",
+          "next_date": "2026-06-04",
+          "direction": "bullish",
+          "confidence": 64.8,
+          "next_return_pct": 0.378,
+          "win": true
+        },
+        {
+          "date": "2026-06-04",
+          "next_date": "2026-06-05",
+          "direction": "bullish",
+          "confidence": 67.4,
+          "next_return_pct": -2.581,
+          "win": false
+        },
+        {
+          "date": "2026-06-05",
+          "next_date": "2026-06-08",
+          "direction": "bearish",
+          "confidence": 68.1,
+          "next_return_pct": 0.226,
+          "win": false
+        }
+      ],
+      "annual": [
+        {
+          "year": "2015",
+          "trades": 182,
+          "win_rate": 39.56,
+          "avg_signal_return": -0.1486
+        },
+        {
+          "year": "2016",
+          "trades": 186,
+          "win_rate": 49.46,
+          "avg_signal_return": 0.0097
+        },
+        {
+          "year": "2017",
+          "trades": 195,
+          "win_rate": 52.82,
+          "avg_signal_return": 0.0223
+        },
+        {
+          "year": "2018",
+          "trades": 203,
+          "win_rate": 49.75,
+          "avg_signal_return": 0.0566
+        },
+        {
+          "year": "2019",
+          "trades": 205,
+          "win_rate": 56.59,
+          "avg_signal_return": 0.0548
+        },
+        {
+          "year": "2020",
+          "trades": 213,
+          "win_rate": 51.64,
+          "avg_signal_return": 0.0158
+        },
+        {
+          "year": "2021",
+          "trades": 215,
+          "win_rate": 51.16,
+          "avg_signal_return": -0.0886
+        },
+        {
+          "year": "2022",
+          "trades": 204,
+          "win_rate": 48.04,
+          "avg_signal_return": -0.0422
+        },
+        {
+          "year": "2023",
+          "trades": 208,
+          "win_rate": 54.81,
+          "avg_signal_return": 0.0263
+        },
+        {
+          "year": "2024",
+          "trades": 209,
+          "win_rate": 54.07,
+          "avg_signal_return": -0.0179
+        },
+        {
+          "year": "2025",
+          "trades": 206,
+          "win_rate": 50.0,
+          "avg_signal_return": -0.008
+        },
+        {
+          "year": "2026",
+          "trades": 89,
+          "win_rate": 50.56,
+          "avg_signal_return": 0.0562
+        }
+      ],
+      "display": "标普 500",
+      "data_meta": {
+        "symbol": "SPY",
+        "source": "yahoo_chart",
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1=0&period2=1781002588&interval=1d&events=history&includeAdjustedClose=true",
+        "rows": 8396,
+        "start": "1993-01-29",
+        "end": "2026-06-08",
+        "saved_to": "F:\\USMarketPulse\\data\\prices\\SPY.csv",
+        "updated_at": "2026-06-09T10:56:29+00:00"
+      }
+    }
+  ],
+  "data": [
+    {
+      "symbol": "QQQ",
+      "source": "yahoo_chart",
+      "url": "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?period1=0&period2=1781002582&interval=1d&events=history&includeAdjustedClose=true",
+      "rows": 6854,
+      "start": "1999-03-10",
+      "end": "2026-06-08",
+      "saved_to": "F:\\USMarketPulse\\data\\prices\\QQQ.csv",
+      "updated_at": "2026-06-09T10:56:23+00:00"
+    },
+    {
+      "symbol": "SPY",
+      "source": "yahoo_chart",
+      "url": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?period1=0&period2=1781002588&interval=1d&events=history&includeAdjustedClose=true",
+      "rows": 8396,
+      "start": "1993-01-29",
+      "end": "2026-06-08",
+      "saved_to": "F:\\USMarketPulse\\data\\prices\\SPY.csv",
+      "updated_at": "2026-06-09T10:56:29+00:00"
+    }
+  ],
+  "errors": []
+}

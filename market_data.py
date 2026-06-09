@@ -1,0 +1,181 @@
+from __future__ import annotations
+
+import csv
+import io
+import time
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+import requests
+
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data" / "prices"
+STOOQ_SYMBOLS = {
+    "SPY": "spy.us",
+    "QQQ": "qqq.us",
+}
+
+
+def _num(value: str) -> float:
+    return float(str(value).strip())
+
+
+def _int(value: str) -> int:
+    text = str(value).strip()
+    return int(float(text)) if text else 0
+
+
+def parse_stooq_csv(text: str) -> list[dict]:
+    rows: list[dict] = []
+    reader = csv.DictReader(io.StringIO(text.strip()))
+    for raw in reader:
+        if not raw or raw.get("Date") in ("Date", None):
+            continue
+        try:
+            rows.append({
+                "date": datetime.strptime(raw["Date"], "%Y-%m-%d").date(),
+                "open": _num(raw["Open"]),
+                "high": _num(raw["High"]),
+                "low": _num(raw["Low"]),
+                "close": _num(raw["Close"]),
+                "volume": _int(raw.get("Volume", "0")),
+            })
+        except Exception:
+            continue
+    rows.sort(key=lambda r: r["date"])
+    return rows
+
+
+def rows_to_csv_text(rows: list[dict]) -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=["Date", "Open", "High", "Low", "Close", "Volume"], lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({
+            "Date": row["date"].isoformat() if isinstance(row["date"], date) else str(row["date"])[:10],
+            "Open": row["open"],
+            "High": row["high"],
+            "Low": row["low"],
+            "Close": row["close"],
+            "Volume": row.get("volume", 0),
+        })
+    return out.getvalue()
+
+
+def latest_bar(rows: list[dict]) -> dict:
+    if not rows:
+        raise ValueError("no rows")
+    return sorted(rows, key=lambda r: r["date"])[-1]
+
+
+def price_path(symbol: str) -> Path:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return DATA_DIR / f"{symbol.upper()}.csv"
+
+
+def load_cached_history(symbol: str) -> list[dict]:
+    path = price_path(symbol)
+    if not path.exists():
+        return []
+    return parse_stooq_csv(path.read_text(encoding="utf-8"))
+
+
+def download_symbol_history(symbol: str, timeout: int = 20) -> dict:
+    symbol = symbol.upper()
+    try:
+        return download_symbol_history_yahoo(symbol, timeout=timeout)
+    except Exception:
+        return download_symbol_history_stooq(symbol, timeout=timeout)
+
+
+def download_symbol_history_yahoo(symbol: str, timeout: int = 20) -> dict:
+    period2 = int(time.time())
+    url = (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+        f"?period1=0&period2={period2}&interval=1d&events=history&includeAdjustedClose=true"
+    )
+    response = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
+    response.raise_for_status()
+    payload = response.json()
+    result = (payload.get("chart", {}).get("result") or [None])[0]
+    if not result:
+        raise RuntimeError(f"Yahoo returned no chart result for {symbol}")
+    timestamps = result.get("timestamp") or []
+    quote = (result.get("indicators", {}).get("quote") or [{}])[0]
+    rows = []
+    for i, ts in enumerate(timestamps):
+        try:
+            open_px = quote.get("open", [])[i]
+            high = quote.get("high", [])[i]
+            low = quote.get("low", [])[i]
+            close = quote.get("close", [])[i]
+            volume = quote.get("volume", [])[i] or 0
+            if None in (open_px, high, low, close):
+                continue
+            rows.append({
+                "date": datetime.fromtimestamp(ts, timezone.utc).date(),
+                "open": float(open_px),
+                "high": float(high),
+                "low": float(low),
+                "close": float(close),
+                "volume": int(volume),
+            })
+        except Exception:
+            continue
+    rows.sort(key=lambda r: r["date"])
+    if len(rows) < 100:
+        raise RuntimeError(f"Yahoo returned too few rows for {symbol}")
+    path = price_path(symbol)
+    path.write_text(rows_to_csv_text(rows), encoding="utf-8")
+    return {
+        "symbol": symbol,
+        "source": "yahoo_chart",
+        "url": url,
+        "rows": len(rows),
+        "start": rows[0]["date"].isoformat(),
+        "end": rows[-1]["date"].isoformat(),
+        "saved_to": str(path),
+        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def download_symbol_history_stooq(symbol: str, timeout: int = 20) -> dict:
+    symbol = symbol.upper()
+    stooq_symbol = STOOQ_SYMBOLS.get(symbol, f"{symbol.lower()}.us")
+    url = f"https://stooq.com/q/d/l/?s={stooq_symbol}&i=d"
+    response = requests.get(url, timeout=timeout, headers={"User-Agent": "USMarketPulse/1.0"})
+    response.raise_for_status()
+    rows = parse_stooq_csv(response.text)
+    if len(rows) < 100:
+        raise RuntimeError(f"Stooq returned too few rows for {symbol}")
+    path = price_path(symbol)
+    path.write_text(rows_to_csv_text(rows), encoding="utf-8")
+    return {
+        "symbol": symbol,
+        "source": "stooq",
+        "url": url,
+        "rows": len(rows),
+        "start": rows[0]["date"].isoformat(),
+        "end": rows[-1]["date"].isoformat(),
+        "saved_to": str(path),
+        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def ensure_history(symbol: str, refresh: bool = False) -> tuple[list[dict], dict]:
+    if refresh:
+        meta = download_symbol_history(symbol)
+        return load_cached_history(symbol), meta
+    rows = load_cached_history(symbol)
+    if rows:
+        return rows, {
+            "symbol": symbol.upper(),
+            "source": "cache",
+            "rows": len(rows),
+            "start": rows[0]["date"].isoformat(),
+            "end": rows[-1]["date"].isoformat(),
+            "saved_to": str(price_path(symbol)),
+        }
+    meta = download_symbol_history(symbol)
+    return load_cached_history(symbol), meta

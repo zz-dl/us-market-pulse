@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="US Market Pulse">
+<title>US Market Pulse</title>
+<style>
+:root{
+  --bg:#090d12;--panel:#111821;--panel2:#151f2b;--line:#243141;
+  --text:#edf3f7;--muted:#8493a5;--soft:#b7c4d1;
+  --teal:#2bd4bd;--amber:#f4b85c;--red:#ff6b6b;--green:#58d68d;--blue:#78a8ff;
+  --shadow:0 16px 44px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;letter-spacing:0}
+button{font:inherit}
+.shell{min-height:100vh;padding:14px 14px 82px;background:
+  linear-gradient(180deg,rgba(43,212,189,.08),transparent 270px),
+  radial-gradient(circle at 82% 0%,rgba(120,168,255,.12),transparent 300px),
+  var(--bg)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.brand h1{margin:0;font-size:20px;line-height:1.1;font-weight:760}
+.brand p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.timebox{text-align:right;min-width:112px}
+.timebox .time{font-size:18px;font-weight:720;font-variant-numeric:tabular-nums}
+.timebox .date{color:var(--muted);font-size:11px;margin-top:3px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.btn{border:0;border-radius:9px;padding:12px 10px;background:var(--teal);color:#06110f;font-weight:760;box-shadow:0 10px 24px rgba(43,212,189,.16)}
+.btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.btn:disabled{opacity:.55}
+.notice{border:1px solid rgba(244,184,92,.35);background:rgba(244,184,92,.09);color:#ffd79a;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.45;margin-bottom:12px}
+.status-strip{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);background:rgba(17,24,33,.72);border-radius:8px;padding:9px 11px;margin-bottom:12px;color:var(--soft);font-size:12px;line-height:1.35}
+.status-strip b{color:var(--text);font-size:12px;white-space:nowrap}
+.status-strip span{text-align:right}
+.grid{display:grid;gap:12px}
+.card{background:linear-gradient(180deg,var(--panel),#0d131b);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:13px}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.name{font-size:18px;font-weight:780}
+.proxy{font-size:11px;color:var(--muted);margin-top:3px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:12px;color:var(--soft);white-space:nowrap}
+.direction{display:flex;align-items:center;gap:14px;margin:4px 0 12px}
+.dial{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--teal) var(--p),#253242 0)}
+.dial:after{content:"";position:absolute;inset:8px;border-radius:50%;background:#0d131b;border:1px solid #223040}
+.dial span{position:relative;z-index:2;font-size:22px;font-weight:780}
+.call{flex:1}
+.call .label{font-size:22px;font-weight:800;text-transform:uppercase}
+.call .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
+.call.bullish .label{color:var(--green)}
+.call.bearish .label{color:var(--red)}
+.call.neutral .label{color:var(--amber)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.metric{background:var(--panel2);border:1px solid #1f2c3b;border-radius:7px;padding:8px}
+.metric small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
+.metric b{font-size:13px;font-variant-numeric:tabular-nums}
+.section-title{font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 7px;text-transform:uppercase}
+.driver{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
+.driver:first-child{border-top:0}
+.driver .left b{font-size:13px}
+.driver .left span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.effect{font-size:11px;border-radius:6px;padding:4px 7px;background:#1d2734;color:var(--soft)}
+.effect.bullish{color:var(--green);background:rgba(88,214,141,.1)}
+.effect.bearish{color:var(--red);background:rgba(255,107,107,.1)}
+.effect.neutral{color:var(--amber);background:rgba(244,184,92,.1)}
+.list{margin:0;padding:0;list-style:none}
+.list li{padding:8px 0;border-top:1px solid rgba(255,255,255,.06);color:var(--soft);font-size:12px;line-height:1.45}
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,13,18,.92);border-top:1px solid var(--line);backdrop-filter:blur(14px);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
+.tab{border:0;background:transparent;color:var(--muted);font-size:12px;padding:9px 4px;border-radius:8px}
+.tab.active{background:var(--panel2);color:var(--teal)}
+.view{display:none}
+.view.active{display:block}
+.backtest-card{display:grid;gap:10px}
+.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bigmetric{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.bigmetric span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}
+.bigmetric b{font-size:20px}
+.rows{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:82px 1fr 66px 44px;gap:6px;padding:9px 10px;border-top:1px solid rgba(255,255,255,.06);font-size:12px;align-items:center}
+.row:first-child{border-top:0}
+.row .muted{color:var(--muted)}
+.good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}
+.data-card{display:grid;gap:8px}
+.data-row{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
+.data-row b{font-size:15px}
+.data-row span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.strategy p{color:var(--soft);font-size:13px;line-height:1.55;margin:8px 0 0}
+.loader{padding:28px 12px;text-align:center;color:var(--muted)}
+@media (min-width:760px){
+  .shell{max-width:980px;margin:0 auto;padding-bottom:30px}
+  .grid{grid-template-columns:1fr 1fr}
+  .tabbar{position:sticky;bottom:auto;top:0;margin:0 auto 16px;max-width:980px;border:1px solid var(--line);border-radius:10px}
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <div class="top">
+    <div class="brand">
+      <h1>US Market Pulse</h1>
+      <p>北京时间 14:30 美股方向雷达</p>
+    </div>
+    <div class="timebox">
+      <div class="time" id="clock">--:--</div>
+      <div class="date" id="date">--</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="forecastBtn">刷新预测</button>
+    <button class="btn secondary" id="refreshBtn">下载数据</button>
+  </div>
+
+  <div class="notice" id="notice">免费 MVP 使用 SPY/QQQ 日线真实历史数据；14:30 版是第一版概率判断，20:30 美国宏观数据后应复核。</div>
+  <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中...</span></div>
+
+  <section class="view active" id="view-forecast">
+    <div class="grid" id="forecastGrid"><div class="loader">加载预测中...</div></div>
+  </section>
+
+  <section class="view" id="view-backtest">
+    <div id="backtestContent" class="loader">加载回测中...</div>
+  </section>
+
+  <section class="view" id="view-data">
+    <div id="dataContent" class="loader">读取数据状态...</div>
+  </section>
+
+  <section class="view strategy" id="view-strategy">
+    <div class="card">
+      <div class="name">策略说明</div>
+      <p>当前版本用 QQQ 代理纳斯达克 100，用 SPY 代理标普 500。预测只使用当时已经可知的日线特征：1日动量、5日动量、20日趋势、20日波动率、区间位置和开盘缺口代理。</p>
+      <p>回测采用无未来函数方式：第 t 日信号预测第 t+1 日收盘涨跌。免费数据适合验证方向框架；若要严格模拟北京时间 14:30 的真实盘前环境，下一版应接入 NQ/ES 期货分钟线、VIX、十年美债收益率和美元指数。</p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button class="tab active" data-view="forecast">预测</button>
+  <button class="tab" data-view="backtest">回测</button>
+  <button class="tab" data-view="data">数据</button>
+  <button class="tab" data-view="strategy">策略</button>
+</nav>
+
+<script>
+const directionText = {bullish:"偏多", bearish:"偏空", neutral:"震荡"};
+const effectText = {bullish:"利多", bearish:"利空", neutral:"中性"};
+
+function setClock(){
+  const now = new Date();
+  document.getElementById("clock").textContent = now.toLocaleTimeString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false,hour:"2-digit",minute:"2-digit"});
+  document.getElementById("date").textContent = now.toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",weekday:"short"});
+}
+setInterval(setClock, 1000); setClock();
+
+function money(v){ return Number(v).toFixed(2); }
+function pct(v){ return `${Number(v).toFixed(2)}%`; }
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const d = await r.json();
+  if(!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+async function loadStatus(){
+  const el = document.getElementById("dailyState");
+  try{
+    const d = await api("/api/status");
+    const s = d.schedule || {};
+    const latest = s.latest_run_at_beijing ? s.latest_run_at_beijing.replace("T", " ") : "尚未运行，到点后会自动生成";
+    el.innerHTML = `<b>自动任务</b><span>工作日 ${s.target_time || "14:30"} 北京时间 · ${latest}</span>`;
+  }catch(e){
+    el.innerHTML = `<b>自动任务</b><span>状态读取失败</span>`;
+  }
+}
+
+function forecastCard(f){
+  const conf = Math.round(f.confidence || 0);
+  const drivers = (f.drivers || []).slice(0,5).map(d => `
+    <div class="driver">
+      <div class="left"><b>${d.label}</b><span>数值 ${d.value} · 贡献 ${d.contribution}</span></div>
+      <div class="effect ${d.effect}">${effectText[d.effect] || d.effect}</div>
+    </div>`).join("");
+  const invalidation = (f.invalidation || []).map(x => `<li>${x}</li>`).join("");
+  const risks = (f.risks || []).map(x => `<li>${x}</li>`).join("") || "<li>当前没有触发额外降权条件</li>";
+  return `
+    <article class="card">
+      <div class="card-head">
+        <div><div class="name">${f.display}</div><div class="proxy">${f.symbol} 代理 · 数据至 ${f.as_of}</div></div>
+        <div class="pill">收盘 ${money(f.last_close)}</div>
+      </div>
+      <div class="direction">
+        <div class="dial" style="--p:${conf}%"><span>${conf}</span></div>
+        <div class="call ${f.direction}">
+          <div class="label">${directionText[f.direction] || f.direction}</div>
+          <div class="sub">模型分 ${f.score}。这是 14:30 第一版概率判断，不是确定性交易指令。</div>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><small>1日</small><b>${pct(f.features.one_day)}</b></div>
+        <div class="metric"><small>5日</small><b>${pct(f.features.five_day)}</b></div>
+        <div class="metric"><small>20日</small><b>${pct(f.features.twenty_day)}</b></div>
+      </div>
+      <div class="section-title">主要驱动</div>
+      ${drivers}
+      <div class="section-title">失效条件</div>
+      <ul class="list">${invalidation}</ul>
+      <div class="section-title">风险提示</div>
+      <ul class="list">${risks}</ul>
+    </article>`;
+}
+
+async function loadForecast(){
+  const grid = document.getElementById("forecastGrid");
+  grid.innerHTML = `<div class="loader">加载预测中...</div>`;
+  try{
+    const d = await api("/api/forecast");
+    if(d.errors && d.errors.length){
+      grid.innerHTML = `<div class="card">预测失败：${d.errors.map(e=>`${e.symbol} ${e.error}`).join("; ")}</div>`;
+      return;
+    }
+    grid.innerHTML = d.forecasts.map(forecastCard).join("");
+    loadStatus();
+  }catch(e){
+    grid.innerHTML = `<div class="card">预测失败：${e.message}</div>`;
+  }
+}
+
+function backtestBlock(b){
+  const rows = (b.recent_signals || []).slice().reverse().map(s => `
+    <div class="row">
+      <div class="muted">${s.date}</div>
+      <div>${directionText[s.direction] || s.direction}</div>
+      <div class="${s.next_return_pct >= 0 ? "good" : "bad"}">${pct(s.next_return_pct)}</div>
+      <div>${s.win ? "命中" : "偏差"}</div>
+    </div>`).join("");
+  return `
+    <div class="card backtest-card">
+      <div class="card-head"><div><div class="name">${b.display}</div><div class="proxy">${b.symbol} · ${b.trades} 次样本</div></div></div>
+      <div class="summary">
+        <div class="bigmetric"><span>方向命中率</span><b>${pct(b.win_rate)}</b></div>
+        <div class="bigmetric"><span>平均次日收益</span><b>${pct(b.avg_next_return)}</b></div>
+        <div class="bigmetric"><span>偏多次数</span><b>${b.bullish_count}</b></div>
+        <div class="bigmetric"><span>偏空次数</span><b>${b.bearish_count}</b></div>
+      </div>
+      <div class="section-title">最近信号</div>
+      <div class="rows">${rows}</div>
+    </div>`;
+}
+
+async function loadBacktest(){
+  const el = document.getElementById("backtestContent");
+  el.innerHTML = `<div class="loader">加载回测中...</div>`;
+  try{
+    const d = await api("/api/backtest");
+    el.innerHTML = `<div class="grid">${d.backtests.map(backtestBlock).join("")}</div>`;
+  }catch(e){
+    el.innerHTML = `<div class="card">回测失败：${e.message}</div>`;
+  }
+}
+
+async function loadData(){
+  const el = document.getElementById("dataContent");
+  try{
+    const d = await api("/api/data");
+    el.innerHTML = `<div class="card data-card">
+      <div class="name">数据状态</div>
+      ${d.symbols.map(s => `<div class="data-row"><b>${s.symbol}</b><div>${s.label}<span>${s.start || "-"} 到 ${s.end || "-"} · ${s.rows} 行</span></div><div class="${s.cached ? "good" : "warn"}">${s.cached ? "已缓存" : "未下载"}</div></div>`).join("")}
+    </div>`;
+  }catch(e){
+    el.innerHTML = `<div class="card">数据状态读取失败：${e.message}</div>`;
+  }
+}
+
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
+  if(btn.dataset.view === "backtest") loadBacktest();
+  if(btn.dataset.view === "data") loadData();
+}));
+
+document.getElementById("forecastBtn").addEventListener("click", loadForecast);
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true; btn.textContent = "下载中";
+  try{ await api("/api/refresh", {method:"POST"}); await loadForecast(); await loadData(); await loadStatus(); }
+  catch(e){ document.getElementById("notice").textContent = `下载失败：${e.message}`; }
+  finally{ btn.disabled = false; btn.textContent = "下载数据"; }
+});
+
+loadStatus();
+loadForecast();
+loadData();
+</script>
+</body>
+</html>
