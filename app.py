@@ -15,7 +15,7 @@ from daily_runner import (
 )
 from db_store import database_status, load_backtest_from_db, load_history_from_db, sync_symbol_dataset
 from forecast import build_forecast, run_backtest
-from market_data import ensure_history, load_cached_history, price_path
+from market_data import ensure_history, fetch_futures_change, load_cached_history, price_path
 
 
 UNIVERSE = {
@@ -120,8 +120,9 @@ def api_forecast():
             else:
                 rows, meta = ensure_history(symbol, refresh=False)
                 sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
+            fut = fetch_futures_change(symbol)
             forecasts.append({
-                **build_forecast(symbol, info["label"], rows),
+                **build_forecast(symbol, info["label"], rows, live_futures_pct=fut),
                 "display": info["display"],
                 "data_meta": meta,
             })

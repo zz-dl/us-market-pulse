@@ -16,6 +16,33 @@ STOOQ_SYMBOLS = {
     "QQQ": "qqq.us",
 }
 
+# 决策时点(北京14:30)的指数期货:标普→ES、纳指→NQ。这是市场对"今晚"的实时下注。
+FUTURES_SYMBOLS = {
+    "SPY": "ES=F",
+    "QQQ": "NQ=F",
+}
+
+
+def fetch_futures_change(symbol: str, timeout: float = 8.0) -> float | None:
+    """返回该标的对应指数期货相对上一交易日结算的涨跌%(实时,如北京14:30)。
+    SPY→ES=F, QQQ→NQ=F。失败返回 None。涨跌 = 最新价 / 上一日线收盘(倒数第二根)。"""
+    import urllib.parse
+    fsym = FUTURES_SYMBOLS.get(symbol.upper())
+    if not fsym:
+        return None
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+           + urllib.parse.quote(fsym) + "?range=7d&interval=1d")
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        res = r.json()["chart"]["result"][0]
+        px = res["meta"].get("regularMarketPrice")
+        closes = [c for c in (res["indicators"]["quote"][0]["close"] or []) if c is not None]
+        if px is None or len(closes) < 2:
+            return None
+        return (px / closes[-2] - 1.0) * 100.0
+    except Exception:
+        return None
+
 
 def _num(value: str) -> float:
     return float(str(value).strip())

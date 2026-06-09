@@ -184,7 +184,7 @@ def load_backtest_from_db(symbol: str, label: str, db_path: Path = DB_PATH) -> d
     }
 
 
-def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history: int = 60) -> list[dict]:
+def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history: int = 200) -> list[dict]:
     rows = sorted(rows, key=lambda r: r["date"])
     signals = []
     for i in range(min_history, len(rows) - 1):

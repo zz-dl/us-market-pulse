@@ -12,10 +12,10 @@ def check(label, cond, detail=""):
 
 def make_rows():
     rows = []
-    start = date(2026, 1, 1)
+    start = date(2025, 1, 1)
     close = 100.0
-    for i in range(70):
-        close *= 1.003 if i < 45 else (0.996 if i < 55 else 1.005)
+    for i in range(260):
+        close *= 1.003 if (i % 20) < 14 else 0.996   # 反复涨跌，制造可回测的样本
         open_px = close * (0.997 if i % 4 == 0 else 1.001)
         rows.append({
             "date": start + timedelta(days=i),
@@ -37,7 +37,7 @@ check("confidence is bounded", 0 <= forecast["confidence"] <= 100, forecast["con
 check("drivers are present", len(forecast["drivers"]) >= 3, forecast["drivers"])
 check("invalidation levels are present", len(forecast["invalidation"]) >= 2, forecast["invalidation"])
 
-backtest = run_backtest("QQQ", "Nasdaq-100", rows, min_history=30)
+backtest = run_backtest("QQQ", "Nasdaq-100", rows, min_history=200)
 check("backtest produces trades", backtest["trades"] > 20, backtest["trades"])
 check("win rate is bounded", 0 <= backtest["win_rate"] <= 100, backtest["win_rate"])
 check("recent samples are capped", len(backtest["recent_signals"]) <= 12, len(backtest["recent_signals"]))

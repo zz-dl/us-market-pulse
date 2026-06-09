@@ -20,9 +20,9 @@ def check(label, cond, detail=""):
 
 def make_rows():
     rows = []
-    start = date(2026, 1, 1)
+    start = date(2025, 1, 1)
     close = 100.0
-    for i in range(75):
+    for i in range(260):
         close *= 1.004 if i % 3 else 0.997
         rows.append({
             "date": start + timedelta(days=i),

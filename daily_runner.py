@@ -9,7 +9,7 @@ from typing import Callable
 
 from db_store import sync_symbol_dataset
 from forecast import build_forecast, run_backtest
-from market_data import ensure_history
+from market_data import ensure_history, fetch_futures_change
 
 
 ROOT = Path(__file__).resolve().parent
@@ -83,8 +83,9 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
                 rows, meta = ensure_history(symbol, refresh=refresh)
                 sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "daily_run"))
                 data.append(meta)
+                fut = fetch_futures_change(symbol)
                 forecasts.append({
-                    **build_forecast(symbol, info["label"], rows),
+                    **build_forecast(symbol, info["label"], rows, live_futures_pct=fut),
                     "display": info["display"],
                     "data_meta": meta,
                 })
