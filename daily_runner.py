@@ -7,6 +7,7 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Callable
 
+from db_store import sync_symbol_dataset
 from forecast import build_forecast, run_backtest
 from market_data import ensure_history
 
@@ -80,6 +81,7 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
         for symbol, info in universe.items():
             try:
                 rows, meta = ensure_history(symbol, refresh=refresh)
+                sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "daily_run"))
                 data.append(meta)
                 forecasts.append({
                     **build_forecast(symbol, info["label"], rows),

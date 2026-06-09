@@ -264,9 +264,12 @@ async function loadData(){
   const el = document.getElementById("dataContent");
   try{
     const d = await api("/api/data");
+    const db = d.database || {};
     el.innerHTML = `<div class="card data-card">
       <div class="name">数据状态</div>
-      ${d.symbols.map(s => `<div class="data-row"><b>${s.symbol}</b><div>${s.label}<span>${s.start || "-"} 到 ${s.end || "-"} · ${s.rows} 行</span></div><div class="${s.cached ? "good" : "warn"}">${s.cached ? "已缓存" : "未下载"}</div></div>`).join("")}
+      <div class="proxy">SQLite DB：${db.path || "-"}</div>
+      <div class="proxy">价格表 ${db.tables?.market_prices || 0} 行 · 回测信号 ${db.tables?.backtest_signals || 0} 行</div>
+      ${d.symbols.map(s => `<div class="data-row"><b>${s.symbol}</b><div>${s.label}<span>DB ${s.db_start || "-"} 到 ${s.db_end || "-"} · ${s.db_rows || 0} 行；CSV ${s.rows} 行</span></div><div class="${s.db_rows ? "good" : "warn"}">${s.db_rows ? "已入库" : "未入库"}</div></div>`).join("")}
     </div>`;
   }catch(e){
     el.innerHTML = `<div class="card">数据状态读取失败：${e.message}</div>`;

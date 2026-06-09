@@ -13,6 +13,7 @@ from daily_runner import (
     scheduler_status,
     start_scheduler,
 )
+from db_store import database_status, load_history_from_db, sync_symbol_dataset
 from forecast import build_forecast, run_backtest
 from market_data import ensure_history, load_cached_history, price_path
 
@@ -42,9 +43,11 @@ def beijing_now() -> str:
 
 def data_status() -> list[dict]:
     out = []
+    db_symbols = {row["symbol"]: row for row in database_status()["symbols"]}
     for symbol, info in UNIVERSE.items():
         rows = load_cached_history(symbol)
         path = price_path(symbol)
+        db_row = db_symbols.get(symbol, {})
         out.append({
             "symbol": symbol,
             "label": info["label"],
@@ -54,6 +57,10 @@ def data_status() -> list[dict]:
             "end": rows[-1]["date"].isoformat() if rows else None,
             "cached": path.exists(),
             "path": str(path),
+            "db_rows": db_row.get("rows", 0),
+            "db_start": db_row.get("start"),
+            "db_end": db_row.get("end"),
+            "db_win_rate": db_row.get("win_rate"),
         })
     return out
 
@@ -82,7 +89,13 @@ def api_refresh():
     errors = []
     for symbol in UNIVERSE:
         try:
-            _, meta = ensure_history(symbol, refresh=True)
+            rows, meta = ensure_history(symbol, refresh=True)
+            db_meta = sync_symbol_dataset(symbol, UNIVERSE[symbol]["label"], rows, source=meta.get("source", "refresh"))
+            meta["database"] = {
+                "path": db_meta["db_path"],
+                "price_rows": db_meta["price_rows"],
+                "signal_rows": db_meta["signal_rows"],
+            }
             results.append(meta)
         except Exception as exc:
             errors.append({"symbol": symbol, "error": str(exc)})
@@ -101,7 +114,12 @@ def api_forecast():
     errors = []
     for symbol, info in UNIVERSE.items():
         try:
-            rows, meta = ensure_history(symbol, refresh=False)
+            rows = load_history_from_db(symbol)
+            if rows:
+                meta = {"symbol": symbol, "source": "sqlite_db", "rows": len(rows)}
+            else:
+                rows, meta = ensure_history(symbol, refresh=False)
+                sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
             forecasts.append({
                 **build_forecast(symbol, info["label"], rows),
                 "display": info["display"],
@@ -165,7 +183,12 @@ def api_backtest():
     errors = []
     for symbol, info in UNIVERSE.items():
         try:
-            rows, meta = ensure_history(symbol, refresh=False)
+            rows = load_history_from_db(symbol)
+            if rows:
+                meta = {"symbol": symbol, "source": "sqlite_db", "rows": len(rows)}
+            else:
+                rows, meta = ensure_history(symbol, refresh=False)
+                sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
             backtests.append({
                 **run_backtest(symbol, info["label"], rows),
                 "display": info["display"],
@@ -187,8 +210,18 @@ def api_data():
     return jsonify(clean_json({
         "ok": True,
         "source": "Yahoo Chart API daily data, with Stooq daily CSV fallback",
+        "database": database_status(),
         "symbols": data_status(),
         "beijing_time": beijing_now(),
+    }))
+
+
+@app.route("/api/db")
+def api_db():
+    return jsonify(clean_json({
+        "ok": True,
+        "beijing_time": beijing_now(),
+        "database": database_status(),
     }))
 
 
