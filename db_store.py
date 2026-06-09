@@ -117,6 +117,73 @@ def load_history_from_db(symbol: str, db_path: Path = DB_PATH) -> list[dict]:
     ]
 
 
+def load_backtest_from_db(symbol: str, label: str, db_path: Path = DB_PATH) -> dict | None:
+    initialize_database(db_path)
+    symbol = symbol.upper()
+    with closing(connect(db_path)) as con:
+        summary = con.execute(
+            """
+            select *
+            from backtest_summary
+            where symbol = ?
+            """,
+            (symbol,),
+        ).fetchone()
+        if summary is None:
+            return None
+        annual = [
+            {
+                "year": row["year"],
+                "trades": row["trades"],
+                "win_rate": row["win_rate"],
+                "avg_signal_return": row["avg_signal_return"],
+            }
+            for row in con.execute(
+                """
+                select year, trades, win_rate, avg_signal_return
+                from backtest_annual
+                where symbol = ?
+                order by year
+                """,
+                (symbol,),
+            ).fetchall()
+        ]
+        recent_desc = con.execute(
+            """
+            select signal_date, next_date, direction, confidence, next_return_pct, win
+            from backtest_signals
+            where symbol = ?
+            order by signal_date desc
+            limit 12
+            """,
+            (symbol,),
+        ).fetchall()
+    recent_signals = [
+        {
+            "date": row["signal_date"],
+            "next_date": row["next_date"],
+            "direction": row["direction"],
+            "confidence": row["confidence"],
+            "next_return_pct": row["next_return_pct"],
+            "win": None if row["win"] is None else bool(row["win"]),
+        }
+        for row in reversed(recent_desc)
+    ]
+    return {
+        "symbol": symbol,
+        "label": label,
+        "observations": summary["observations"],
+        "trades": summary["trades"],
+        "win_rate": summary["win_rate"],
+        "avg_next_return": summary["avg_next_return"],
+        "bullish_count": summary["bullish_count"],
+        "bearish_count": summary["bearish_count"],
+        "neutral_count": summary["neutral_count"],
+        "recent_signals": recent_signals,
+        "annual": annual[-12:],
+    }
+
+
 def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history: int = 60) -> list[dict]:
     rows = sorted(rows, key=lambda r: r["date"])
     signals = []

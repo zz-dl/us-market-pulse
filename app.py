@@ -13,7 +13,7 @@ from daily_runner import (
     scheduler_status,
     start_scheduler,
 )
-from db_store import database_status, load_history_from_db, sync_symbol_dataset
+from db_store import database_status, load_backtest_from_db, load_history_from_db, sync_symbol_dataset
 from forecast import build_forecast, run_backtest
 from market_data import ensure_history, load_cached_history, price_path
 
@@ -183,14 +183,16 @@ def api_backtest():
     errors = []
     for symbol, info in UNIVERSE.items():
         try:
+            backtest = load_backtest_from_db(symbol, info["label"])
             rows = load_history_from_db(symbol)
-            if rows:
+            if backtest and rows:
                 meta = {"symbol": symbol, "source": "sqlite_db", "rows": len(rows)}
             else:
                 rows, meta = ensure_history(symbol, refresh=False)
                 sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
+                backtest = load_backtest_from_db(symbol, info["label"]) or run_backtest(symbol, info["label"], rows)
             backtests.append({
-                **run_backtest(symbol, info["label"], rows),
+                **backtest,
                 "display": info["display"],
                 "data_meta": meta,
             })

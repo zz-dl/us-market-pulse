@@ -5,6 +5,7 @@ from pathlib import Path
 from db_store import (
     database_status,
     initialize_database,
+    load_backtest_from_db,
     load_history_from_db,
     sync_symbol_dataset,
 )
@@ -40,12 +41,15 @@ with TemporaryDirectory() as temp:
     rows = make_rows()
     result = sync_symbol_dataset("QQQ", "Nasdaq-100", rows, db_path=db_path, source="test")
     loaded = load_history_from_db("QQQ", db_path=db_path)
+    backtest = load_backtest_from_db("QQQ", "Nasdaq-100", db_path=db_path)
     status = database_status(db_path)
 
     check("writes all price rows", result["price_rows"] == len(rows), result)
     check("reads rows from db", len(loaded) == len(rows), len(loaded))
     check("dates round trip as date objects", loaded[0]["date"] == rows[0]["date"], loaded[0]["date"])
     check("summary is written", result["backtest_summary"]["trades"] > 0, result["backtest_summary"])
+    check("backtest can be read from db", backtest["trades"] == result["backtest_summary"]["trades"], backtest)
+    check("recent db signals are capped", len(backtest["recent_signals"]) <= 12, len(backtest["recent_signals"]))
     check("signals are written", result["signal_rows"] > 0, result["signal_rows"])
     check("status includes market_prices", status["tables"]["market_prices"] == len(rows), status)
     check("status includes summary table", status["tables"]["backtest_summary"] == 1, status)
