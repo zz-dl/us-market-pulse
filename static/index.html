@@ -26,8 +26,9 @@ button{font:inherit}
 .timebox{text-align:right;min-width:112px}
 .timebox .time{font-size:18px;font-weight:720;font-variant-numeric:tabular-nums}
 .timebox .date{color:var(--muted);font-size:11px;margin-top:3px}
-.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.actions{display:block;margin-bottom:12px}
 .btn{border:0;border-radius:9px;padding:12px 10px;background:var(--teal);color:#06110f;font-weight:760;box-shadow:0 10px 24px rgba(43,212,189,.16)}
+.actions .btn{width:100%}
 .btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);box-shadow:none}
 .btn:disabled{opacity:.55}
 .notice{border:1px solid rgba(244,184,92,.35);background:rgba(244,184,92,.09);color:#ffd79a;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.45;margin-bottom:12px}
@@ -65,25 +66,12 @@ button{font:inherit}
 .effect.neutral{color:var(--amber);background:rgba(244,184,92,.1)}
 .list{margin:0;padding:0;list-style:none}
 .list li{padding:8px 0;border-top:1px solid rgba(255,255,255,.06);color:var(--soft);font-size:12px;line-height:1.45}
-.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,13,18,.92);border-top:1px solid var(--line);backdrop-filter:blur(14px);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,13,18,.92);border-top:1px solid var(--line);backdrop-filter:blur(14px);display:grid;grid-template-columns:repeat(2,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
 .tab{border:0;background:transparent;color:var(--muted);font-size:12px;padding:9px 4px;border-radius:8px}
 .tab.active{background:var(--panel2);color:var(--teal)}
 .view{display:none}
 .view.active{display:block}
-.backtest-card{display:grid;gap:10px}
-.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.bigmetric{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
-.bigmetric span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}
-.bigmetric b{font-size:20px}
-.rows{border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.row{display:grid;grid-template-columns:82px 1fr 66px 44px;gap:6px;padding:9px 10px;border-top:1px solid rgba(255,255,255,.06);font-size:12px;align-items:center}
-.row:first-child{border-top:0}
-.row .muted{color:var(--muted)}
 .good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}
-.data-card{display:grid;gap:8px}
-.data-row{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px}
-.data-row b{font-size:15px}
-.data-row span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
 .strategy p{color:var(--soft);font-size:13px;line-height:1.55;margin:8px 0 0}
 .loader{padding:28px 12px;text-align:center;color:var(--muted)}
 @media (min-width:760px){
@@ -108,37 +96,26 @@ button{font:inherit}
 
   <div class="actions">
     <button class="btn" id="forecastBtn">刷新预测</button>
-    <button class="btn secondary" id="refreshBtn">下载数据</button>
   </div>
 
-  <div class="notice" id="notice">免费 MVP 使用 SPY/QQQ 日线真实历史数据；14:30 版是第一版概率判断，20:30 美国宏观数据后应复核。</div>
+  <div class="notice" id="notice">14:30 版是第一版概率判断，20:30 美国宏观数据后应复核。</div>
   <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中...</span></div>
 
   <section class="view active" id="view-forecast">
     <div class="grid" id="forecastGrid"><div class="loader">加载预测中...</div></div>
   </section>
 
-  <section class="view" id="view-backtest">
-    <div id="backtestContent" class="loader">加载回测中...</div>
-  </section>
-
-  <section class="view" id="view-data">
-    <div id="dataContent" class="loader">读取数据状态...</div>
-  </section>
-
   <section class="view strategy" id="view-strategy">
     <div class="card">
       <div class="name">策略说明</div>
       <p>当前版本用 QQQ 代理纳斯达克 100，用 SPY 代理标普 500。预测只使用当时已经可知的日线特征：1日动量、5日动量、20日趋势、20日波动率、区间位置和开盘缺口代理。</p>
-      <p>回测采用无未来函数方式：第 t 日信号预测第 t+1 日收盘涨跌。免费数据适合验证方向框架；若要严格模拟北京时间 14:30 的真实盘前环境，下一版应接入 NQ/ES 期货分钟线、VIX、十年美债收益率和美元指数。</p>
+      <p>这是北京时间 14:30 的盘前方向雷达，不是确定性交易指令。若要更贴近真实盘前环境，后续应接入 NQ/ES 期货分钟线、VIX、十年美债收益率和美元指数。</p>
     </div>
   </section>
 </main>
 
 <nav class="tabbar">
   <button class="tab active" data-view="forecast">预测</button>
-  <button class="tab" data-view="backtest">回测</button>
-  <button class="tab" data-view="data">数据</button>
   <button class="tab" data-view="strategy">策略</button>
 </nav>
 
@@ -227,76 +204,17 @@ async function loadForecast(){
   }
 }
 
-function backtestBlock(b){
-  const rows = (b.recent_signals || []).slice().reverse().map(s => `
-    <div class="row">
-      <div class="muted">${s.date}</div>
-      <div>${directionText[s.direction] || s.direction}</div>
-      <div class="${s.next_return_pct >= 0 ? "good" : "bad"}">${pct(s.next_return_pct)}</div>
-      <div>${s.win ? "命中" : "偏差"}</div>
-    </div>`).join("");
-  return `
-    <div class="card backtest-card">
-      <div class="card-head"><div><div class="name">${b.display}</div><div class="proxy">${b.symbol} · ${b.trades} 次样本</div></div></div>
-      <div class="summary">
-        <div class="bigmetric"><span>方向命中率</span><b>${pct(b.win_rate)}</b></div>
-        <div class="bigmetric"><span>平均次日收益</span><b>${pct(b.avg_next_return)}</b></div>
-        <div class="bigmetric"><span>偏多次数</span><b>${b.bullish_count}</b></div>
-        <div class="bigmetric"><span>偏空次数</span><b>${b.bearish_count}</b></div>
-      </div>
-      <div class="section-title">最近信号</div>
-      <div class="rows">${rows}</div>
-    </div>`;
-}
-
-async function loadBacktest(){
-  const el = document.getElementById("backtestContent");
-  el.innerHTML = `<div class="loader">加载回测中...</div>`;
-  try{
-    const d = await api("/api/backtest");
-    el.innerHTML = `<div class="grid">${d.backtests.map(backtestBlock).join("")}</div>`;
-  }catch(e){
-    el.innerHTML = `<div class="card">回测失败：${e.message}</div>`;
-  }
-}
-
-async function loadData(){
-  const el = document.getElementById("dataContent");
-  try{
-    const d = await api("/api/data");
-    const db = d.database || {};
-    el.innerHTML = `<div class="card data-card">
-      <div class="name">数据状态</div>
-      <div class="proxy">SQLite DB：${db.path || "-"}</div>
-      <div class="proxy">价格表 ${db.tables?.market_prices || 0} 行 · 回测信号 ${db.tables?.backtest_signals || 0} 行</div>
-      ${d.symbols.map(s => `<div class="data-row"><b>${s.symbol}</b><div>${s.label}<span>DB ${s.db_start || "-"} 到 ${s.db_end || "-"} · ${s.db_rows || 0} 行；CSV ${s.rows} 行</span></div><div class="${s.db_rows ? "good" : "warn"}">${s.db_rows ? "已入库" : "未入库"}</div></div>`).join("")}
-    </div>`;
-  }catch(e){
-    el.innerHTML = `<div class="card">数据状态读取失败：${e.message}</div>`;
-  }
-}
-
 document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
   document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
-  if(btn.dataset.view === "backtest") loadBacktest();
-  if(btn.dataset.view === "data") loadData();
 }));
 
 document.getElementById("forecastBtn").addEventListener("click", loadForecast);
-document.getElementById("refreshBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("refreshBtn");
-  btn.disabled = true; btn.textContent = "下载中";
-  try{ await api("/api/refresh", {method:"POST"}); await loadForecast(); await loadData(); await loadStatus(); }
-  catch(e){ document.getElementById("notice").textContent = `下载失败：${e.message}`; }
-  finally{ btn.disabled = false; btn.textContent = "下载数据"; }
-});
 
 loadStatus();
 loadForecast();
-loadData();
 </script>
 </body>
 </html>
