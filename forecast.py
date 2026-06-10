@@ -15,6 +15,13 @@ def _slice(rows: list[dict], end: int) -> list[dict]:
     return rows[: end + 1]
 
 
+def _weekday_of(value) -> int:
+    if hasattr(value, "weekday"):
+        return value.weekday()
+    from datetime import date as _date
+    return _date.fromisoformat(str(value)[:10]).weekday()
+
+
 def _features(rows: list[dict]) -> dict:
     if len(rows) < 60:
         raise ValueError("at least 60 bars are required")
@@ -27,6 +34,11 @@ def _features(rows: list[dict]) -> dict:
     n_long = min(200, len(closes))
     ma50 = mean(closes[-50:])
     ma_long = mean(closes[-n_long:])
+    # 连跌天数（含当日，最多数 6 天）
+    down_streak = 0
+    while down_streak < 6 and len(closes) > down_streak + 1 \
+            and closes[-1 - down_streak] < closes[-2 - down_streak]:
+        down_streak += 1
     return {
         "one_day": pct(closes[-1], closes[-2]),
         "five_day": pct(closes[-1], closes[-6]),
@@ -37,6 +49,8 @@ def _features(rows: list[dict]) -> dict:
         "above_ma50": 1.0 if last["close"] > ma50 else 0.0,
         "above_ma200": 1.0 if last["close"] > ma_long else 0.0,
         "dist_ma200": pct(last["close"], ma_long),
+        "down_streak": float(down_streak),
+        "weekday": float(_weekday_of(last["date"])),
         "last_close": last["close"],
         "last_date": last["date"].isoformat() if hasattr(last["date"], "isoformat") else str(last["date"])[:10],
     }
@@ -46,12 +60,16 @@ def _clip(x: float, c: float = 3.0) -> float:
     return max(-c, min(c, x))
 
 
-def _score_from_features(f: dict) -> tuple[float, list[dict], list[str]]:
-    """方向打分（基于对 SPY/QQQ 全历史真实数据的实证）：
-    日级指数方向≈随机游走，能稳定>50%的只有三条边——
+def _score_from_features(f: dict, vix_level: float | None = None) -> tuple[float, list[dict], list[str]]:
+    """方向打分（基于对 SPY/QQQ 全历史真实数据的实证,双时间窗+双标的验证）：
+    日级指数方向≈随机游走，能稳定>50%的边——
       1) 长期上行漂移：美股约 54-57% 的交易日是涨的 → 给一个看多基线；
-      2) 1 日均值回归：昨日跌，今晚反弹概率更高（昨日跌≤2%时次日上涨约 57-60%）→ 对昨日涨跌取“反向”权重；
-      3) 200 日均线区间制度：线上做多有效，线下漂移消失 → 制度过滤。
+      2) 1 日均值回归：昨日跌，今晚反弹概率更高 → 反向权重；
+         但只在 200 日线上方有完整效果（线下抄底实测≈掷硬币 → 反转项 ×0.45 打折）；
+      3) 200 日均线制度：线上做多有效，线下漂移消失；
+      4) 连跌 3 天+ → 反弹概率显著升高（SPY 60.9%/QQQ 57.9%,近10年 59.8%/64.2%）；
+      5) VIX<15 的平静市里昨日下跌 → 次日上涨 56-60%（VIX 缺失时此项为 0）；
+      6) 周五小幅看多（双标的双窗稳健,权重很小）。
     （1/5/20 日“动量”实测无效甚至有害，已弃用。）"""
     drivers: list[dict] = []
     risks: list[str] = []
@@ -59,17 +77,23 @@ def _score_from_features(f: dict) -> tuple[float, list[dict], list[str]]:
     r1 = f["one_day"]
     r20 = f["twenty_day"]
     above200 = f["above_ma200"] > 0.5
+    down_streak = int(f.get("down_streak", 0))
+    weekday = int(f.get("weekday", -1))
 
-    drift = 0.35                              # 1) 上行漂移基线
-    rev = -0.45 * _clip(r1)                   # 2) 1日均值回归（昨日跌→看多）
-    regime = 0.15 if above200 else -0.20      # 3) 200日线制度
-    trend = 0.10 * tanh(r20 / 5.0)            # 轻度中期趋势
+    drift = 0.35                                              # 1) 上行漂移基线
+    rev = -0.45 * _clip(r1) * (1.0 if above200 else 0.45)     # 2) 制度内才有完整反转边
+    regime = 0.15 if above200 else -0.20                      # 3) 200日线制度
+    trend = 0.10 * tanh(r20 / 5.0)                            # 轻度中期趋势
+    streak = 0.25 if down_streak >= 3 else 0.0                # 4) 连跌3天+反弹
+    calm_dip = 0.15 if (vix_level is not None and vix_level < 15 and r1 < 0) else 0.0  # 5)
+    friday = 0.07 if weekday == 4 else 0.0                    # 6) 周五效应
 
-    score = drift + rev + regime + trend
+    score = drift + rev + regime + trend + streak + calm_dip + friday
 
     drivers.append({"label": "长期上行漂移", "value": round(drift, 2),
                     "effect": "bullish", "contribution": round(drift, 3)})
-    drivers.append({"label": "1日均值回归（昨日跌→今晚易反弹）", "value": round(r1, 3),
+    drivers.append({"label": "1日均值回归（昨日跌→今晚易反弹）" + ("" if above200 else "·线下打折"),
+                    "value": round(r1, 3),
                     "effect": "bullish" if rev > 0.05 else ("bearish" if rev < -0.05 else "neutral"),
                     "contribution": round(rev, 3)})
     drivers.append({"label": "200日均线上方" if above200 else "200日均线下方",
@@ -78,12 +102,22 @@ def _score_from_features(f: dict) -> tuple[float, list[dict], list[str]]:
     drivers.append({"label": "20日趋势", "value": round(r20, 3),
                     "effect": "bullish" if trend > 0.02 else ("bearish" if trend < -0.02 else "neutral"),
                     "contribution": round(trend, 3)})
+    if streak:
+        drivers.append({"label": f"已连跌{down_streak}天（历史反弹概率↑）", "value": down_streak,
+                        "effect": "bullish", "contribution": streak})
+    if calm_dip:
+        drivers.append({"label": f"平静市回调（VIX {vix_level:.1f}<15 且昨跌）", "value": round(vix_level, 1),
+                        "effect": "bullish", "contribution": calm_dip})
+    if friday:
+        drivers.append({"label": "周五效应", "value": 5, "effect": "bullish", "contribution": friday})
 
     if f["volatility_20d"] > 30:
         score *= 0.8
         risks.append("20日波动率偏高，方向信号降权")
-    if r1 <= -1.0 and above200:
-        risks.append("昨日大跌 + 处于上升趋势 → 历史上今晚反弹概率偏高（抄底信号最强）")
+    if down_streak >= 3:
+        risks.append(f"已连跌{down_streak}天 → 历史上次日反弹概率约 58-64%（连跌抄底是最强单一信号）")
+    elif r1 <= -1.0 and above200:
+        risks.append("昨日大跌 + 处于上升趋势 → 历史上今晚反弹概率偏高（抄底信号强）")
     if r1 >= 1.5 and not above200:
         risks.append("下行趋势中的急涨 → 今晚可能高开回落")
 
@@ -91,10 +125,11 @@ def _score_from_features(f: dict) -> tuple[float, list[dict], list[str]]:
 
 
 def build_forecast(symbol: str, label: str, rows: list[dict],
-                   live_futures_pct: float | None = None) -> dict:
+                   live_futures_pct: float | None = None,
+                   vix_level: float | None = None) -> dict:
     rows = sorted(rows, key=lambda r: r["date"])
     f = _features(rows)
-    score, drivers, risks = _score_from_features(f)
+    score, drivers, risks = _score_from_features(f, vix_level=vix_level)
 
     # 实时期货修正(仅实盘 14:30 调用时传入;回测不传 → None → 不影响回测口径)。
     # 2:30pm 的 ES/NQ 期货是市场对"今晚"的实时下注,是日线数据看不到的最强信号。
@@ -116,11 +151,12 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
                 f"{'多' if live_futures_pct > 0 else '空'}（回测口径不含此项,实盘参考）"
             )
 
-    # 非对称阈值:做多门槛低（上行漂移是真实的），做空门槛高（实证里做空≈掷硬币，
-    # 只有分数很负时偏空才勉强不亏）。对应你的用法:bullish=买/持有，bearish=减仓/别追，neutral=观望。
+    # 非对称阈值:做多门槛低（上行漂移是真实的），做空门槛高（实证里做空≈掷硬币）。
+    # bear 阈值 -0.70 经实测调优:更宽(-0.5)时偏空腿掉到 43-50% 亏损,收紧后剩下的偏空才有边。
+    # 对应你的用法:bullish=买/持有，bearish=减仓/别追，neutral=观望。
     if score > 0.30:
         direction = "bullish"
-    elif score < -0.50:
+    elif score < -0.70:
         direction = "bearish"
     else:
         direction = "neutral"
@@ -139,6 +175,7 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
         "score": round(score, 3),
         "confidence": confidence,
         "live_futures_pct": futures_used,
+        "vix_level": round(vix_level, 2) if vix_level is not None else None,
         "last_close": round(close, 3),
         "features": {k: round(v, 4) if isinstance(v, float) else v for k, v in f.items()},
         "drivers": sorted(drivers, key=lambda d: abs(d["contribution"]), reverse=True),
@@ -147,13 +184,20 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
     }
 
 
-def run_backtest(symbol: str, label: str, rows: list[dict], min_history: int = 200) -> dict:
+def _date_key(value) -> str:
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)[:10]
+
+
+def run_backtest(symbol: str, label: str, rows: list[dict], min_history: int = 200,
+                 vix_series: dict | None = None) -> dict:
+    """vix_series: {YYYY-MM-DD: vix_close}。回测里第 t 日只用第 t 日(当日收盘前已知)的 VIX。"""
     rows = sorted(rows, key=lambda r: r["date"])
     samples = []
     actionable = []
     annual = defaultdict(lambda: {"trades": 0, "wins": 0, "returns": []})
     for i in range(min_history, len(rows) - 1):
-        forecast = build_forecast(symbol, label, _slice(rows, i))
+        vix = (vix_series or {}).get(_date_key(rows[i]["date"]))
+        forecast = build_forecast(symbol, label, _slice(rows, i), vix_level=vix)
         ret = pct(rows[i + 1]["close"], rows[i]["close"])
         if forecast["direction"] == "neutral":
             predicted_sign = 0

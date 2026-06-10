@@ -15,7 +15,7 @@ from daily_runner import (
 )
 from db_store import database_status, load_backtest_from_db, load_history_from_db, sync_symbol_dataset
 from forecast import build_forecast, run_backtest
-from market_data import ensure_history, fetch_futures_change, load_cached_history, price_path
+from market_data import ensure_history, fetch_futures_change, fetch_vix_level, load_cached_history, price_path
 
 
 UNIVERSE = {
@@ -112,6 +112,7 @@ def api_forecast():
     run_due_daily_job(UNIVERSE, refresh=True)
     forecasts = []
     errors = []
+    vix_now = fetch_vix_level()
     for symbol, info in UNIVERSE.items():
         try:
             rows = load_history_from_db(symbol)
@@ -122,7 +123,7 @@ def api_forecast():
                 sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
             fut = fetch_futures_change(symbol)
             forecasts.append({
-                **build_forecast(symbol, info["label"], rows, live_futures_pct=fut),
+                **build_forecast(symbol, info["label"], rows, live_futures_pct=fut, vix_level=vix_now),
                 "display": info["display"],
                 "data_meta": meta,
             })

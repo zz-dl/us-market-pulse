@@ -277,11 +277,14 @@ async function loadStrategy(){
   grid.innerHTML=`<div class="loader">加载策略与回测…</div>`;
   let cards = `<article class="card strategy">
     <div class="etf">模型怎么判断</div>
-    <p>方向判断基于对 SPY/QQQ <b>全历史日线真实数据</b>的实证。日级指数方向接近随机游走，能稳定 &gt;50% 的只有三条边：</p>
+    <p>方向判断基于对 SPY/QQQ <b>全历史日线真实数据</b>的实证（所有信号在「全历史 + 近10年」「SPY + QQQ」双重检验下都成立才采纳）。能稳定 &gt;50% 的边：</p>
     <div class="edge"><div class="n">1</div><div><b>长期上行漂移</b>：美股约 54–57% 的交易日是涨的 → 给一个看多基线。</div></div>
-    <div class="edge"><div class="n">2</div><div><b>1 日均值回归</b>：昨日跌→今晚更易反弹（昨日跌≥2% 时次日上涨约 57–60%）→ 抄底信号最强。</div></div>
+    <div class="edge"><div class="n">2</div><div><b>1 日均值回归</b>：昨日跌→今晚更易反弹；但只在 200 日线上方有完整效果（线下抄底实测≈掷硬币 → 反转项打折）。</div></div>
     <div class="edge"><div class="n">3</div><div><b>200 日均线制度</b>：线上做多有效，线下漂移消失 → 制度过滤。</div></div>
-    <p style="margin-top:12px"><b>非对称</b>：做多门槛低、做空门槛高——实证里做空≈掷硬币，所以很少喊“空”，避免给错误卖出信号。1/5/20 日“动量”实测无效已弃用。</p>
+    <div class="edge"><div class="n">4</div><div><b>连跌 3 天+ 抄底</b>：连跌3天后次日上涨 58–64%，最强单一信号。</div></div>
+    <div class="edge"><div class="n">5</div><div><b>平静市回调（VIX&lt;15 且昨跌）</b>：次日上涨 56–60%（VIX 日线全历史已入库回测）。</div></div>
+    <div class="edge"><div class="n">6</div><div><b>周五效应</b>：双标的双窗稳健的小幅看多，权重很小。</div></div>
+    <p style="margin-top:12px"><b>非对称</b>：做多门槛低、做空门槛极高（实证里做空≈掷硬币，宽阈值时偏空腿只有 43–50% 会亏，收紧后剩下的偏空才有边）。1/5/20 日“动量”、VIX&gt;25、VIX飙升等实测不稳健，均不采纳。</p>
     <p>14:30 实盘再叠加 <b>ES/NQ 实时期货</b>（市场对今晚的实时下注）作修正——这是日线回测看不到、但实战最强的信号，故回测命中率不含此项。</p>
     <p style="color:var(--muted)">⚠️ 老实说：日线价格特征预测隔夜方向 ~54–57% 是现实天花板，别指望更高。真正价值在“统计边 + 实时期货盘口”的组合，用来辅助 513500/159941 的买卖，而非神算。</p>
   </article>`;

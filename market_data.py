@@ -23,6 +23,37 @@ FUTURES_SYMBOLS = {
 }
 
 
+def fetch_vix_level(timeout: float = 8.0) -> float | None:
+    """实时 VIX 水平(决策时点)。失败返回 None(模型里 VIX 项自动为 0,不影响其它项)。"""
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=5d&interval=1d"
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        meta = r.json()["chart"]["result"][0]["meta"]
+        px = meta.get("regularMarketPrice")
+        return float(px) if px else None
+    except Exception:
+        return None
+
+
+def fetch_vix_history_rows(days_range: str = "1mo", timeout: float = 10.0) -> list[tuple]:
+    """近段 VIX 日线 [(date_str, close)],供每日把新 VIX 追加进 DB(保持回测数据不陈旧)。"""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range={days_range}&interval=1d"
+    out: list[tuple] = []
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        res = r.json()["chart"]["result"][0]
+        ts = res.get("timestamp") or []
+        closes = res["indicators"]["quote"][0]["close"]
+        for i, t in enumerate(ts):
+            c = closes[i]
+            if c is None:
+                continue
+            out.append((datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d"), float(c)))
+    except Exception:
+        pass
+    return out
+
+
 def fetch_futures_change(symbol: str, timeout: float = 8.0) -> float | None:
     """返回该标的对应指数期货相对上一交易日结算的涨跌%(实时,如北京14:30)。
     SPY→ES=F, QQQ→NQ=F。失败返回 None。涨跌 = 最新价 / 上一日线收盘(倒数第二根)。"""

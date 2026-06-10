@@ -92,6 +92,38 @@ def _parse_date(value: str) -> date:
     return datetime.strptime(value, "%Y-%m-%d").date()
 
 
+def upsert_vix_rows(rows: list[tuple], db_path: Path = DB_PATH) -> int:
+    """把 [(date_str, close)] 追加/更新进 market_prices(symbol='^VIX')。"""
+    if not rows:
+        return 0
+    initialize_database(db_path)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with closing(connect(db_path)) as con:
+        con.executemany(
+            """
+            insert into market_prices (symbol, trade_date, open, high, low, close, volume, source, updated_at)
+            values ('^VIX', ?, ?, ?, ?, ?, 0, 'yahoo_daily', ?)
+            on conflict(symbol, trade_date) do update set
+                close = excluded.close, updated_at = excluded.updated_at
+            """,
+            [(d, c, c, c, c, now) for d, c in rows],
+        )
+        con.commit()
+    return len(rows)
+
+
+def load_vix_series(db_path: Path = DB_PATH) -> dict:
+    """{YYYY-MM-DD: VIX收盘}。VIX 日线已入库(symbol='^VIX'),供回测的平静市回调项用。"""
+    initialize_database(db_path)
+    with closing(connect(db_path)) as con:
+        return {
+            row["trade_date"]: row["close"]
+            for row in con.execute(
+                "select trade_date, close from market_prices where symbol = '^VIX'"
+            ).fetchall()
+        }
+
+
 def load_history_from_db(symbol: str, db_path: Path = DB_PATH) -> list[dict]:
     initialize_database(db_path)
     with closing(connect(db_path)) as con:
@@ -203,11 +235,13 @@ def load_backtest_from_db(symbol: str, label: str, db_path: Path = DB_PATH) -> d
     }
 
 
-def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history: int = 200) -> list[dict]:
+def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history: int = 200,
+                          vix_series: dict | None = None) -> list[dict]:
     rows = sorted(rows, key=lambda r: r["date"])
     signals = []
     for i in range(min_history, len(rows) - 1):
-        forecast = build_forecast(symbol, label, rows[: i + 1])
+        vix = (vix_series or {}).get(_date_text(rows[i]["date"]))
+        forecast = build_forecast(symbol, label, rows[: i + 1], vix_level=vix)
         next_return = pct(rows[i + 1]["close"], rows[i]["close"])
         if forecast["direction"] == "neutral":
             win = None
@@ -236,8 +270,9 @@ def sync_symbol_dataset(
     symbol = symbol.upper()
     rows = sorted(rows, key=lambda r: r["date"])
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    summary = run_backtest(symbol, label, rows)
-    signals = _all_backtest_signals(symbol, label, rows)
+    vix_series = load_vix_series(db_path)
+    summary = run_backtest(symbol, label, rows, vix_series=vix_series)
+    signals = _all_backtest_signals(symbol, label, rows, vix_series=vix_series)
 
     with closing(connect(db_path)) as con:
         con.executemany(

@@ -7,9 +7,9 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Callable
 
-from db_store import sync_symbol_dataset
+from db_store import sync_symbol_dataset, upsert_vix_rows
 from forecast import build_forecast, run_backtest
-from market_data import ensure_history, fetch_futures_change
+from market_data import ensure_history, fetch_futures_change, fetch_vix_history_rows, fetch_vix_level
 
 
 ROOT = Path(__file__).resolve().parent
@@ -78,6 +78,13 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
         data = []
         errors = []
 
+        # 先把近一个月 VIX 日线补进 DB(回测的平静市回调项需要;失败不阻塞)
+        try:
+            upsert_vix_rows(fetch_vix_history_rows("1mo"))
+        except Exception:
+            pass
+        vix_now = fetch_vix_level()
+
         for symbol, info in universe.items():
             try:
                 rows, meta = ensure_history(symbol, refresh=refresh)
@@ -85,7 +92,7 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
                 data.append(meta)
                 fut = fetch_futures_change(symbol)
                 forecasts.append({
-                    **build_forecast(symbol, info["label"], rows, live_futures_pct=fut),
+                    **build_forecast(symbol, info["label"], rows, live_futures_pct=fut, vix_level=vix_now),
                     "display": info["display"],
                     "data_meta": meta,
                 })
