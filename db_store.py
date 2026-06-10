@@ -158,6 +158,24 @@ def load_backtest_from_db(symbol: str, label: str, db_path: Path = DB_PATH) -> d
             """,
             (symbol,),
         ).fetchall()
+        # 各方向历史命中率（直接从已存的全部信号统计，给"这类信号几率多大"用）
+        direction_stats = {}
+        for row in con.execute(
+            """
+            select direction,
+                   count(*) as n,
+                   sum(case when win = 1 then 1 else 0 end) as w
+            from backtest_signals
+            where symbol = ? and direction in ('bullish', 'bearish')
+            group by direction
+            """,
+            (symbol,),
+        ).fetchall():
+            n = row["n"] or 0
+            direction_stats[row["direction"]] = {
+                "trades": n,
+                "win_rate": round((row["w"] or 0) / n * 100, 1) if n else None,
+            }
     recent_signals = [
         {
             "date": row["signal_date"],
@@ -179,6 +197,7 @@ def load_backtest_from_db(symbol: str, label: str, db_path: Path = DB_PATH) -> d
         "bullish_count": summary["bullish_count"],
         "bearish_count": summary["bearish_count"],
         "neutral_count": summary["neutral_count"],
+        "direction_stats": direction_stats,
         "recent_signals": recent_signals,
         "annual": annual[-12:],
     }

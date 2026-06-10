@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="US Market Pulse">
-<title>US Market Pulse</title>
+<meta name="apple-mobile-web-app-title" content="美股预判">
+<title>美股预判 · 513500/159941</title>
 <style>
 :root{
   --bg:#090d12;--panel:#111821;--panel2:#151f2b;--line:#243141;
@@ -14,69 +14,100 @@
   --shadow:0 16px 44px rgba(0,0,0,.28);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;letter-spacing:0}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
 button{font:inherit}
-.shell{min-height:100vh;padding:14px 14px 82px;background:
+.shell{min-height:100vh;padding:14px 14px 84px;background:
   linear-gradient(180deg,rgba(43,212,189,.08),transparent 270px),
   radial-gradient(circle at 82% 0%,rgba(120,168,255,.12),transparent 300px),
   var(--bg)}
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
-.brand h1{margin:0;font-size:20px;line-height:1.1;font-weight:760}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.brand h1{margin:0;font-size:19px;font-weight:760}
 .brand p{margin:5px 0 0;color:var(--muted);font-size:12px}
-.timebox{text-align:right;min-width:112px}
+.timebox{text-align:right;min-width:106px}
 .timebox .time{font-size:18px;font-weight:720;font-variant-numeric:tabular-nums}
 .timebox .date{color:var(--muted);font-size:11px;margin-top:3px}
-.actions{display:block;margin-bottom:12px}
-.btn{border:0;border-radius:9px;padding:12px 10px;background:var(--teal);color:#06110f;font-weight:760;box-shadow:0 10px 24px rgba(43,212,189,.16)}
-.actions .btn{width:100%}
-.btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.actions{margin-bottom:12px}
+.btn{border:0;border-radius:9px;padding:12px 10px;background:var(--teal);color:#06110f;font-weight:760;width:100%;box-shadow:0 10px 24px rgba(43,212,189,.16)}
 .btn:disabled{opacity:.55}
-.notice{border:1px solid rgba(244,184,92,.35);background:rgba(244,184,92,.09);color:#ffd79a;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.45;margin-bottom:12px}
-.status-strip{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);background:rgba(17,24,33,.72);border-radius:8px;padding:9px 11px;margin-bottom:12px;color:var(--soft);font-size:12px;line-height:1.35}
-.status-strip b{color:var(--text);font-size:12px;white-space:nowrap}
+.notice{border:1px solid rgba(244,184,92,.35);background:rgba(244,184,92,.09);color:#ffd79a;border-radius:9px;padding:9px 12px;font-size:12px;line-height:1.45;margin-bottom:12px}
+.status-strip{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);background:rgba(17,24,33,.72);border-radius:8px;padding:9px 11px;margin-bottom:12px;color:var(--soft);font-size:12px}
+.status-strip b{color:var(--text);white-space:nowrap}
 .status-strip span{text-align:right}
 .grid{display:grid;gap:12px}
-.card{background:linear-gradient(180deg,var(--panel),#0d131b);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:13px}
-.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
-.name{font-size:18px;font-weight:780}
-.proxy{font-size:11px;color:var(--muted);margin-top:3px}
-.pill{border:1px solid var(--line);border-radius:999px;padding:5px 8px;font-size:12px;color:var(--soft);white-space:nowrap}
-.direction{display:flex;align-items:center;gap:14px;margin:4px 0 12px}
-.dial{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--teal) var(--p),#253242 0)}
-.dial:after{content:"";position:absolute;inset:8px;border-radius:50%;background:#0d131b;border:1px solid #223040}
-.dial span{position:relative;z-index:2;font-size:22px;font-weight:780}
-.call{flex:1}
-.call .label{font-size:22px;font-weight:800;text-transform:uppercase}
-.call .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
-.call.bullish .label{color:var(--green)}
-.call.bearish .label{color:var(--red)}
-.call.neutral .label{color:var(--amber)}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.card{background:linear-gradient(180deg,var(--panel),#0d131b);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:14px}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.etf{font-size:18px;font-weight:800}
+.etf small{display:block;color:var(--muted);font-size:11px;font-weight:500;margin-top:3px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:12px;color:var(--soft);white-space:nowrap}
+
+/* 大结论 */
+.verdict{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px}
+.v-main{font-size:30px;font-weight:850;line-height:1}
+.v-act{font-size:13px;color:var(--soft)}
+.verdict.bullish .v-main{color:var(--green)}
+.verdict.bearish .v-main{color:var(--red)}
+.verdict.neutral .v-main{color:var(--amber)}
+
+/* 倾向条 偏空<->震荡<->偏多 */
+.lean{margin:12px 0 4px}
+.lean-track{position:relative;height:16px;border-radius:9px;border:1px solid var(--line);
+  background:linear-gradient(90deg,#e05757 0%,#e05757 28%,#caa24a 34%,#caa24a 60%,#4cc07e 66%,#4cc07e 100%)}
+.lean-mark{position:absolute;top:-4px;bottom:-4px;width:4px;background:#fff;border-radius:3px;
+  transform:translateX(-50%);box-shadow:0 0 8px rgba(255,255,255,.75)}
+.lean-scale{display:flex;justify-content:space-between;margin-top:7px;color:var(--muted);font-size:11px}
+.lean-scale b{font-weight:700}
+.lean-scale .on-bear{color:var(--red)}.lean-scale .on-neu{color:var(--amber)}.lean-scale .on-bull{color:var(--green)}
+
+.hitline{font-size:12.5px;color:var(--soft);margin:10px 0 0;line-height:1.5}
+.hitline b{color:var(--text);font-size:14px}
+.futbadge{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:700;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
+.futbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
+.futbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
+.futbadge.flat{color:var(--soft);background:var(--panel2)}
+
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 4px}
 .metric{background:var(--panel2);border:1px solid #1f2c3b;border-radius:7px;padding:8px}
 .metric small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
 .metric b{font-size:13px;font-variant-numeric:tabular-nums}
-.section-title{font-size:12px;color:var(--muted);font-weight:700;margin:12px 0 7px;text-transform:uppercase}
-.driver{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
-.driver:first-child{border-top:0}
-.driver .left b{font-size:13px}
+
+details{margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px}
+summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:700;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary:before{content:"▸ ";color:var(--teal)}
+details[open] summary:before{content:"▾ "}
+.driver{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:7px 0;border-top:1px solid rgba(255,255,255,.05)}
+.driver:first-of-type{border-top:0}
+.driver .left b{font-size:12.5px}
 .driver .left span{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .effect{font-size:11px;border-radius:6px;padding:4px 7px;background:#1d2734;color:var(--soft)}
 .effect.bullish{color:var(--green);background:rgba(88,214,141,.1)}
 .effect.bearish{color:var(--red);background:rgba(255,107,107,.1)}
 .effect.neutral{color:var(--amber);background:rgba(244,184,92,.1)}
-.list{margin:0;padding:0;list-style:none}
-.list li{padding:8px 0;border-top:1px solid rgba(255,255,255,.06);color:var(--soft);font-size:12px;line-height:1.45}
+.list{margin:6px 0 0;padding:0;list-style:none}
+.list li{padding:7px 0;border-top:1px solid rgba(255,255,255,.05);color:var(--soft);font-size:12px;line-height:1.45}
+
+/* 策略 / 回测 */
+.section-title{font-size:12px;color:var(--muted);font-weight:700;margin:14px 0 7px;text-transform:uppercase;letter-spacing:.03em}
+.strategy p{color:var(--soft);font-size:13px;line-height:1.6;margin:8px 0 0}
+.edge{display:flex;gap:9px;align-items:flex-start;margin-top:9px;color:var(--soft);font-size:12.5px;line-height:1.5}
+.edge .n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--teal)}
+.bt-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 4px}
+.bt-cell{background:var(--panel2);border:1px solid #1f2c3b;border-radius:7px;padding:9px}
+.bt-cell small{display:block;color:var(--muted);font-size:10px;margin-bottom:4px}
+.bt-cell b{font-size:16px;font-variant-numeric:tabular-nums}
+.annual{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+.annual th,.annual td{padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.06);text-align:right;font-variant-numeric:tabular-nums}
+.annual th:first-child,.annual td:first-child{text-align:left;color:var(--muted)}
+.annual td.hi{color:var(--green)}.annual td.lo{color:var(--red)}
+
 .tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,13,18,.92);border-top:1px solid var(--line);backdrop-filter:blur(14px);display:grid;grid-template-columns:repeat(2,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
-.tab{border:0;background:transparent;color:var(--muted);font-size:12px;padding:9px 4px;border-radius:8px}
+.tab{border:0;background:transparent;color:var(--muted);font-size:13px;padding:9px 4px;border-radius:8px;font-weight:700}
 .tab.active{background:var(--panel2);color:var(--teal)}
-.view{display:none}
-.view.active{display:block}
-.good{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}
-.strategy p{color:var(--soft);font-size:13px;line-height:1.55;margin:8px 0 0}
+.view{display:none}.view.active{display:block}
 .loader{padding:28px 12px;text-align:center;color:var(--muted)}
 @media (min-width:760px){
   .shell{max-width:980px;margin:0 auto;padding-bottom:30px}
-  .grid{grid-template-columns:1fr 1fr}
+  #forecastGrid,#strategyGrid{grid-template-columns:1fr 1fr}
   .tabbar{position:sticky;bottom:auto;top:0;margin:0 auto 16px;max-width:980px;border:1px solid var(--line);border-radius:10px}
 }
 </style>
@@ -85,8 +116,8 @@ button{font:inherit}
 <main class="shell">
   <div class="top">
     <div class="brand">
-      <h1>US Market Pulse</h1>
-      <p>北京时间 14:30 美股方向雷达</p>
+      <h1>美股预判</h1>
+      <p>北京 14:30 · 决定 513500 / 159941 今晚买卖</p>
     </div>
     <div class="timebox">
       <div class="time" id="clock">--:--</div>
@@ -94,127 +125,192 @@ button{font:inherit}
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn" id="forecastBtn">刷新预测</button>
-  </div>
-
-  <div class="notice" id="notice">14:30 版是第一版概率判断，20:30 美国宏观数据后应复核。</div>
-  <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中...</span></div>
+  <div class="actions"><button class="btn" id="refreshBtn">刷新预判</button></div>
+  <div class="notice">14:30 是第一版判断（含实时期货）。北京 20:30 后美国数据可能推翻，需复核。仅辅助，不构成投资建议。</div>
+  <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中…</span></div>
 
   <section class="view active" id="view-forecast">
-    <div class="grid" id="forecastGrid"><div class="loader">加载预测中...</div></div>
+    <div class="grid" id="forecastGrid"><div class="loader">加载预判中…</div></div>
   </section>
 
-  <section class="view strategy" id="view-strategy">
-    <div class="card">
-      <div class="name">策略说明</div>
-      <p>当前版本用 QQQ 代理纳斯达克 100，用 SPY 代理标普 500。预测只使用当时已经可知的日线特征：1日动量、5日动量、20日趋势、20日波动率、区间位置和开盘缺口代理。</p>
-      <p>这是北京时间 14:30 的盘前方向雷达，不是确定性交易指令。若要更贴近真实盘前环境，后续应接入 NQ/ES 期货分钟线、VIX、十年美债收益率和美元指数。</p>
-    </div>
+  <section class="view" id="view-strategy">
+    <div class="grid" id="strategyGrid"><div class="loader">加载策略与回测…</div></div>
   </section>
 </main>
 
 <nav class="tabbar">
-  <button class="tab active" data-view="forecast">预测</button>
-  <button class="tab" data-view="strategy">策略</button>
+  <button class="tab active" data-view="forecast">今晚预判</button>
+  <button class="tab" data-view="strategy">策略与回测</button>
 </nav>
 
 <script>
-const directionText = {bullish:"偏多", bearish:"偏空", neutral:"震荡"};
+const ETF = {
+  QQQ:{idx:"纳斯达克", etf:"广发纳指ETF", code:"159941", fut:"NQ"},
+  SPY:{idx:"标普500",  etf:"博时标普500ETF", code:"513500", fut:"ES"},
+};
+const DIR = {
+  bullish:{txt:"偏多", act:"→ 可买 / 持有"},
+  bearish:{txt:"偏空", act:"→ 减仓 / 别追"},
+  neutral:{txt:"震荡", act:"→ 观望，方向不明"},
+};
 const effectText = {bullish:"利多", bearish:"利空", neutral:"中性"};
+let BT = {};   // symbol -> backtest
 
 function setClock(){
   const now = new Date();
   document.getElementById("clock").textContent = now.toLocaleTimeString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false,hour:"2-digit",minute:"2-digit"});
   document.getElementById("date").textContent = now.toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai",month:"2-digit",day:"2-digit",weekday:"short"});
 }
-setInterval(setClock, 1000); setClock();
+setInterval(setClock,1000); setClock();
 
-function money(v){ return Number(v).toFixed(2); }
-function pct(v){ return `${Number(v).toFixed(2)}%`; }
+const money=v=>Number(v).toFixed(2);
+const pctTxt=v=>`${Number(v)>=0?"+":""}${Number(v).toFixed(2)}%`;
 
-async function api(path, opts){
-  const r = await fetch(path, opts);
-  const d = await r.json();
-  if(!r.ok) throw new Error(d.error || r.statusText);
-  return d;
+async function api(path){ const r=await fetch(path); const d=await r.json(); if(!r.ok) throw new Error(d.error||r.statusText); return d; }
+
+function lerp(x,a,b,c,d){ return c+(x-a)/(b-a)*(d-c); }
+function scorePos(score){            // 模型分 -> 倾向条 0..100 位置（阈值:空<-0.5, 多>0.3）
+  let p; const s=Math.max(-2,Math.min(2,score));
+  if(s<=-0.5) p=lerp(s,-2,-0.5,4,31);
+  else if(s<=0.3) p=lerp(s,-0.5,0.3,31,63);
+  else p=lerp(s,0.3,2,63,96);
+  return Math.max(3,Math.min(97,p));
 }
-
-async function loadStatus(){
-  const el = document.getElementById("dailyState");
-  try{
-    const d = await api("/api/status");
-    const s = d.schedule || {};
-    const latest = s.latest_run_at_beijing ? s.latest_run_at_beijing.replace("T", " ") : "尚未运行，到点后会自动生成";
-    el.innerHTML = `<b>自动任务</b><span>工作日 ${s.target_time || "14:30"} 北京时间 · ${latest}</span>`;
-  }catch(e){
-    el.innerHTML = `<b>自动任务</b><span>状态读取失败</span>`;
-  }
+function strength(score,dir){
+  const a=Math.abs(score);
+  if(dir==="neutral") return "方向不明";
+  if(dir==="bullish") return score>1.0?"强":(score>0.6?"中":"弱（边缘）");
+  return score<-0.9?"强":(score<-0.65?"中":"弱（边缘）");
 }
 
 function forecastCard(f){
-  const conf = Math.round(f.confidence || 0);
-  const drivers = (f.drivers || []).slice(0,5).map(d => `
-    <div class="driver">
-      <div class="left"><b>${d.label}</b><span>数值 ${d.value} · 贡献 ${d.contribution}</span></div>
-      <div class="effect ${d.effect}">${effectText[d.effect] || d.effect}</div>
-    </div>`).join("");
-  const invalidation = (f.invalidation || []).map(x => `<li>${x}</li>`).join("");
-  const risks = (f.risks || []).map(x => `<li>${x}</li>`).join("") || "<li>当前没有触发额外降权条件</li>";
-  return `
-    <article class="card">
-      <div class="card-head">
-        <div><div class="name">${f.display}</div><div class="proxy">${f.symbol} 代理 · 数据至 ${f.as_of}</div></div>
-        <div class="pill">收盘 ${money(f.last_close)}</div>
-      </div>
-      <div class="direction">
-        <div class="dial" style="--p:${conf}%"><span>${conf}</span></div>
-        <div class="call ${f.direction}">
-          <div class="label">${directionText[f.direction] || f.direction}</div>
-          <div class="sub">模型分 ${f.score}。这是 14:30 第一版概率判断，不是确定性交易指令。</div>
-        </div>
-      </div>
-      <div class="metrics">
-        <div class="metric"><small>1日</small><b>${pct(f.features.one_day)}</b></div>
-        <div class="metric"><small>5日</small><b>${pct(f.features.five_day)}</b></div>
-        <div class="metric"><small>20日</small><b>${pct(f.features.twenty_day)}</b></div>
-      </div>
-      <div class="section-title">主要驱动</div>
-      ${drivers}
-      <div class="section-title">失效条件</div>
-      <ul class="list">${invalidation}</ul>
-      <div class="section-title">风险提示</div>
+  const e = ETF[f.symbol] || {idx:f.display,etf:f.symbol,code:"",fut:"期货"};
+  const dir = f.direction, di = DIR[dir] || {txt:dir,act:""};
+  const pos = scorePos(f.score);
+  const ds = (BT[f.symbol]||{}).direction_stats || {};
+  const stat = ds[dir];
+  let hit;
+  if(dir==="neutral") hit = `震荡区间 → 历史上这类<b>不交易（观望）</b>`;
+  else if(stat && stat.win_rate!=null) hit = `这类<b>${di.txt}</b>信号历史命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
+  else hit = `历史命中率数据生成中`;
+
+  const fut = f.live_futures_pct;
+  let futBadge = "";
+  if(fut!=null){
+    const cls = fut>=0.1?"up":(fut<=-0.1?"dn":"flat");
+    futBadge = `<div class="futbadge ${cls}">实时 ${e.fut} 期货 ${pctTxt(fut)}　<span style="font-weight:500;color:var(--muted)">决策时点盘口</span></div>`;
+  }
+
+  const ft = f.features||{};
+  const drivers = (f.drivers||[]).slice(0,6).map(d=>`
+    <div class="driver"><div class="left"><b>${d.label}</b><span>数值 ${d.value} · 贡献 ${d.contribution}</span></div>
+    <div class="effect ${d.effect}">${effectText[d.effect]||d.effect}</div></div>`).join("");
+  const risks = (f.risks||[]).map(x=>`<li>${x}</li>`).join("") || "<li>当前没有触发额外提示</li>";
+  const inval = (f.invalidation||[]).map(x=>`<li>${x}</li>`).join("");
+
+  return `<article class="card">
+    <div class="card-head">
+      <div class="etf">${e.etf} ${e.code}<small>${e.idx}（用 ${f.symbol} 代理）· 数据至 ${f.as_of}</small></div>
+      <div class="pill">收盘 ${money(f.last_close)}</div>
+    </div>
+    <div class="verdict ${dir}"><div class="v-main">${di.txt}</div><div class="v-act">${di.act}</div></div>
+    <div class="lean">
+      <div class="lean-track"><div class="lean-mark" style="left:${pos}%"></div></div>
+      <div class="lean-scale"><span class="${dir==='bearish'?'on-bear':''}"><b>◀ 偏空</b></span>
+        <span class="${dir==='neutral'?'on-neu':''}"><b>震荡</b></span>
+        <span class="${dir==='bullish'?'on-bull':''}"><b>偏多 ▶</b></span></div>
+    </div>
+    <div class="hitline">模型分 <b>${f.score}</b> · 强度 ${strength(f.score,dir)}　|　${hit}</div>
+    ${futBadge}
+    <div class="metrics">
+      <div class="metric"><small>昨日涨跌</small><b>${pctTxt(ft.one_day)}</b></div>
+      <div class="metric"><small>近20日</small><b>${pctTxt(ft.twenty_day)}</b></div>
+      <div class="metric"><small>距200日线</small><b>${pctTxt(ft.dist_ma200)}</b></div>
+    </div>
+    <details><summary>主要驱动 / 风险提示</summary>
+      <div style="margin-top:6px">${drivers}</div>
       <ul class="list">${risks}</ul>
-    </article>`;
+      <ul class="list">${inval}</ul>
+    </details>
+  </article>`;
 }
 
 async function loadForecast(){
-  const grid = document.getElementById("forecastGrid");
-  grid.innerHTML = `<div class="loader">加载预测中...</div>`;
+  const grid=document.getElementById("forecastGrid");
+  grid.innerHTML=`<div class="loader">加载预判中…（线上服务冷启动可能要 ~30 秒）</div>`;
   try{
-    const d = await api("/api/forecast");
-    if(d.errors && d.errors.length){
-      grid.innerHTML = `<div class="card">预测失败：${d.errors.map(e=>`${e.symbol} ${e.error}`).join("; ")}</div>`;
-      return;
+    const [fc, bt] = await Promise.all([api("/api/forecast"), api("/api/backtest").catch(()=>({backtests:[]}))]);
+    BT = {}; (bt.backtests||[]).forEach(b=>BT[b.symbol]=b);
+    if(fc.errors && fc.errors.length && !(fc.forecasts||[]).length){
+      grid.innerHTML=`<div class="card">预判失败：${fc.errors.map(e=>`${e.symbol} ${e.error}`).join("; ")}</div>`; return;
     }
-    grid.innerHTML = d.forecasts.map(forecastCard).join("");
+    grid.innerHTML=(fc.forecasts||[]).map(forecastCard).join("");
     loadStatus();
-  }catch(e){
-    grid.innerHTML = `<div class="card">预测失败：${e.message}</div>`;
-  }
+  }catch(e){ grid.innerHTML=`<div class="card">预判失败：${e.message}</div>`; }
 }
 
-document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+function annualRows(annual){
+  return (annual||[]).slice(-8).map(a=>{
+    const cls = a.win_rate>=53?"hi":(a.win_rate<50?"lo":"");
+    return `<tr><td>${a.year}</td><td class="${cls}">${a.win_rate}%</td><td>${a.trades}</td></tr>`;
+  }).join("");
+}
+function backtestCard(b){
+  const e=ETF[b.symbol]||{idx:b.label,etf:b.symbol,code:""};
+  const ds=b.direction_stats||{}; const bl=ds.bullish||{}, br=ds.bearish||{};
+  return `<article class="card">
+    <div class="card-head"><div class="etf">${e.etf} ${e.code}<small>${e.idx}（${b.symbol}）· ${b.observations} 个交易日回测</small></div>
+      <div class="pill">命中 ${b.win_rate}%</div></div>
+    <div class="bt-grid">
+      <div class="bt-cell"><small>总命中率</small><b>${b.win_rate}%</b></div>
+      <div class="bt-cell"><small>出手次数</small><b>${b.trades}</b></div>
+      <div class="bt-cell"><small>偏多命中</small><b>${bl.win_rate??"—"}%</b><small style="margin-top:3px">${bl.trades||0} 次</small></div>
+      <div class="bt-cell"><small>偏空命中</small><b>${br.win_rate??"—"}%</b><small style="margin-top:3px">${br.trades||0} 次</small></div>
+    </div>
+    <div class="section-title">逐年命中率</div>
+    <table class="annual"><thead><tr><th>年份</th><th>命中率</th><th>出手</th></tr></thead><tbody>${annualRows(b.annual)}</tbody></table>
+  </article>`;
+}
+
+async function loadStrategy(){
+  const grid=document.getElementById("strategyGrid");
+  grid.innerHTML=`<div class="loader">加载策略与回测…</div>`;
+  let cards = `<article class="card strategy">
+    <div class="etf">模型怎么判断</div>
+    <p>方向判断基于对 SPY/QQQ <b>全历史日线真实数据</b>的实证。日级指数方向接近随机游走，能稳定 &gt;50% 的只有三条边：</p>
+    <div class="edge"><div class="n">1</div><div><b>长期上行漂移</b>：美股约 54–57% 的交易日是涨的 → 给一个看多基线。</div></div>
+    <div class="edge"><div class="n">2</div><div><b>1 日均值回归</b>：昨日跌→今晚更易反弹（昨日跌≥2% 时次日上涨约 57–60%）→ 抄底信号最强。</div></div>
+    <div class="edge"><div class="n">3</div><div><b>200 日均线制度</b>：线上做多有效，线下漂移消失 → 制度过滤。</div></div>
+    <p style="margin-top:12px"><b>非对称</b>：做多门槛低、做空门槛高——实证里做空≈掷硬币，所以很少喊“空”，避免给错误卖出信号。1/5/20 日“动量”实测无效已弃用。</p>
+    <p>14:30 实盘再叠加 <b>ES/NQ 实时期货</b>（市场对今晚的实时下注）作修正——这是日线回测看不到、但实战最强的信号，故回测命中率不含此项。</p>
+    <p style="color:var(--muted)">⚠️ 老实说：日线价格特征预测隔夜方向 ~54–57% 是现实天花板，别指望更高。真正价值在“统计边 + 实时期货盘口”的组合，用来辅助 513500/159941 的买卖，而非神算。</p>
+  </article>`;
+  try{
+    const bt=await api("/api/backtest");
+    cards += (bt.backtests||[]).map(backtestCard).join("");
+  }catch(e){ cards += `<div class="card">回测数据加载失败：${e.message}</div>`; }
+  grid.innerHTML=cards;
+}
+
+async function loadStatus(){
+  const el=document.getElementById("dailyState");
+  try{
+    const d=await api("/api/status"); const s=d.schedule||{};
+    const latest=s.latest_run_at_beijing?s.latest_run_at_beijing.replace("T"," "):"到点后自动生成";
+    el.innerHTML=`<b>自动任务</b><span>工作日 ${s.target_time||"14:30"} 北京时间 · ${latest}</span>`;
+  }catch(e){ el.innerHTML=`<b>自动任务</b><span>状态读取失败</span>`; }
+}
+
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
   btn.classList.add("active");
   document.getElementById(`view-${btn.dataset.view}`).classList.add("active");
+  if(btn.dataset.view==="strategy" && !document.querySelector("#strategyGrid .card")) loadStrategy();
 }));
+document.getElementById("refreshBtn").addEventListener("click",loadForecast);
 
-document.getElementById("forecastBtn").addEventListener("click", loadForecast);
-
-loadStatus();
-loadForecast();
+loadStatus(); loadForecast();
 </script>
 </body>
 </html>
