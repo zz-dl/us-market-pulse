@@ -100,6 +100,17 @@ details[open] summary:before{content:"▾ "}
 .annual th:first-child,.annual td:first-child{text-align:left;color:var(--muted)}
 .annual td.hi{color:var(--green)}.annual td.lo{color:var(--red)}
 
+/* 市场环境面板 */
+.env-chips{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 2px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--soft)}
+.chip b{color:var(--text);font-variant-numeric:tabular-nums}
+.chip .up{color:var(--green)}.chip .dn{color:var(--red)}
+.flag{display:inline-block;border-radius:7px;padding:5px 9px;font-size:12px;font-weight:700;color:#ffb1b1;background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.35);margin:8px 8px 0 0}
+.newslist{margin:8px 0 0;padding:0;list-style:none}
+.newslist li{padding:7px 0;border-top:1px solid rgba(255,255,255,.05);font-size:12.5px;line-height:1.45}
+.newslist a{color:var(--soft);text-decoration:none}
+.newslist a:hover{color:var(--teal)}
+.env-note{color:var(--muted);font-size:11.5px;margin-top:9px;line-height:1.5}
 .tabbar{position:fixed;left:0;right:0;bottom:0;background:rgba(9,13,18,.92);border-top:1px solid var(--line);backdrop-filter:blur(14px);display:grid;grid-template-columns:repeat(2,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:5}
 .tab{border:0;background:transparent;color:var(--muted);font-size:13px;padding:9px 4px;border-radius:8px;font-weight:700}
 .tab.active{background:var(--panel2);color:var(--teal)}
@@ -235,6 +246,31 @@ function forecastCard(f){
   </article>`;
 }
 
+function chipHtml(label, q, unit, digits){
+  if(!q || q.price==null) return "";
+  const cls = q.chg_pct>=0.05?"up":(q.chg_pct<=-0.05?"dn":"");
+  return `<div class="chip">${label} <b>${Number(q.price).toFixed(digits)}</b>${unit} <span class="${cls}">${pctTxt(q.chg_pct)}</span></div>`;
+}
+function envCard(ctx){
+  if(!ctx) return "";
+  const chips = [
+    ctx.vix!=null?`<div class="chip">VIX <b>${Number(ctx.vix).toFixed(1)}</b> ${ctx.vix>=25?'<span class="dn">情绪紧张</span>':(ctx.vix<16?'<span class="up">平静</span>':'中性')}</div>`:"",
+    chipHtml("美元/人民币", ctx.usdcny, "", 3),
+    chipHtml("美元指数", ctx.dxy, "", 1),
+    chipHtml("美债10Y", ctx.us10y, "%", 2),
+  ].join("");
+  const flags = (ctx.risk_flags||[]).map(f=>`<span class="flag">⚠️ ${f}</span>`).join("");
+  const news = (ctx.news||[]).slice(0,5).map(n=>
+    `<li><a href="${n.link}" target="_blank" rel="noopener">${n.title}</a></li>`).join("");
+  return `<article class="card" style="grid-column:1/-1">
+    <div class="etf">市场环境（打开即实时刷新）<small>汇率 / 美元 / 利率 / VIX / 最新新闻</small></div>
+    <div class="env-chips">${chips}</div>
+    ${flags}
+    ${news?`<ul class="newslist">${news}</ul>`:""}
+    <div class="env-note">📌 ${ctx.note||"新闻/汇率等最新冲击通过『实时期货』进入模型分；本面板供人工参考。"}</div>
+  </article>`;
+}
+
 async function loadForecast(){
   const grid=document.getElementById("forecastGrid");
   grid.innerHTML=`<div class="loader">加载预判中…（线上服务冷启动可能要 ~30 秒）</div>`;
@@ -244,7 +280,7 @@ async function loadForecast(){
     if(fc.errors && fc.errors.length && !(fc.forecasts||[]).length){
       grid.innerHTML=`<div class="card">预判失败：${fc.errors.map(e=>`${e.symbol} ${e.error}`).join("; ")}</div>`; return;
     }
-    grid.innerHTML=(fc.forecasts||[]).map(forecastCard).join("");
+    grid.innerHTML = envCard(fc.market_context) + (fc.forecasts||[]).map(forecastCard).join("");
     loadStatus();
   }catch(e){ grid.innerHTML=`<div class="card">预判失败：${e.message}</div>`; }
 }

@@ -23,6 +23,62 @@ FUTURES_SYMBOLS = {
 }
 
 
+def fetch_quote_change(symbol: str, timeout: float = 8.0) -> dict | None:
+    """{'price','chg_pct'}:最新价 vs 上一交易日收盘(日线倒数第二根)。失败 None。"""
+    import urllib.parse
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
+           + urllib.parse.quote(symbol) + "?range=7d&interval=1d")
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        res = r.json()["chart"]["result"][0]
+        px = res["meta"].get("regularMarketPrice")
+        closes = [c for c in (res["indicators"]["quote"][0]["close"] or []) if c is not None]
+        if px is None or len(closes) < 2 or not closes[-2]:
+            return None
+        return {"price": float(px), "chg_pct": (float(px) / closes[-2] - 1.0) * 100.0}
+    except Exception:
+        return None
+
+
+_NEWS_RISK_KEYWORDS = {
+    "地缘冲突": ["iran", "israel", "war", "strike", "attack", "missile", "military", "conflict", "nuclear"],
+    "美联储/利率": ["fed ", "federal reserve", "powell", "rate cut", "rate hike", "fomc", "inflation"],
+    "贸易/关税": ["tariff", "trade war", "sanction", "export control"],
+    "油价冲击": ["oil price", "crude", "opec"],
+}
+
+
+def fetch_news_headlines(limit: int = 6, timeout: float = 10.0) -> list[dict]:
+    """美股相关最新新闻标题(Google News RSS,仅标题+链接+时间)。失败返回 []。"""
+    import xml.etree.ElementTree as ET
+    url = ("https://news.google.com/rss/search?q=US%20stock%20market%20OR%20Nasdaq%20OR%20"
+           "%22S%26P%20500%22%20when:1d&hl=en-US&gl=US&ceid=US:en")
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
+        root = ET.fromstring(r.content)
+        items = []
+        for item in root.iter("item"):
+            title = (item.findtext("title") or "").strip()
+            if not title:
+                continue
+            items.append({
+                "title": title,
+                "link": (item.findtext("link") or "").strip(),
+                "published": (item.findtext("pubDate") or "").strip(),
+            })
+            if len(items) >= limit:
+                break
+        return items
+    except Exception:
+        return []
+
+
+def detect_news_risk_flags(headlines: list[dict]) -> list[str]:
+    """从新闻标题里识别风险主题(关键词级,只做提示,不进打分)。"""
+    text = " ".join(h.get("title", "").lower() for h in headlines)
+    return [flag for flag, kws in _NEWS_RISK_KEYWORDS.items() if any(k in text for k in kws)]
+
+
 def fetch_vix_level(timeout: float = 8.0) -> float | None:
     """实时 VIX 水平(决策时点)。失败返回 None(模型里 VIX 项自动为 0,不影响其它项)。"""
     url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?range=5d&interval=1d"
