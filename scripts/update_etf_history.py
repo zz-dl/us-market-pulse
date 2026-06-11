@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
+import time
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,12 +20,21 @@ DB = Path(__file__).resolve().parent.parent / "data" / "us_market_pulse.sqlite3"
 ETFS = [("159941", "0.159941"), ("513500", "1.513500")]
 
 
-def kline(secid: str, lmt: int) -> list[tuple]:
+def kline(secid: str, lmt: int, retries: int = 3) -> list[tuple]:
     url = ("http://push2his.eastmoney.com/api/qt/stock/kline/get?secid=" + secid +
            "&fields1=f1,f2,f3,f4,f5&fields2=f51,f52,f53,f54,f55,f56"
            f"&klt=101&fqt=1&end=20500101&lmt={lmt}")
-    d = json.load(urllib.request.urlopen(
-        urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15))
+    d = None
+    for attempt in range(retries):
+        try:
+            d = json.load(urllib.request.urlopen(
+                urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15))
+            break
+        except Exception as exc:
+            if attempt == retries - 1:
+                raise
+            print(f"  {secid} attempt {attempt + 1} failed ({exc}), retrying...")
+            time.sleep(2)
     out = []
     for k in (d.get("data") or {}).get("klines") or []:
         p = k.split(",")  # date,open,close,high,low,volume
