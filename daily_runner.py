@@ -7,8 +7,8 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Callable
 
-from db_store import sync_symbol_dataset, upsert_vix_rows
-from forecast import build_forecast, run_backtest
+from db_store import load_backtest_from_db, store_price_rows, upsert_vix_rows
+from forecast import build_forecast
 from market_data import ensure_history, fetch_futures_change, fetch_vix_history_rows, fetch_vix_level
 
 
@@ -88,7 +88,9 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
         for symbol, info in universe.items():
             try:
                 rows, meta = ensure_history(symbol, refresh=refresh)
-                sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "daily_run"))
+                # 只写价格(轻量)。全量回测重算在 Render 免费机要数分钟会拖死请求,
+                # 故只在本地模型变更时跑(随 commit 上线);这里读 DB 预存的回测汇总。
+                store_price_rows(symbol, rows, source=meta.get("source", "daily_run"))
                 data.append(meta)
                 fut = fetch_futures_change(symbol)
                 forecasts.append({
@@ -96,11 +98,9 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
                     "display": info["display"],
                     "data_meta": meta,
                 })
-                backtests.append({
-                    **run_backtest(symbol, info["label"], rows),
-                    "display": info["display"],
-                    "data_meta": meta,
-                })
+                stored_bt = load_backtest_from_db(symbol, info["label"])
+                if stored_bt:
+                    backtests.append({**stored_bt, "display": info["display"], "data_meta": meta})
             except Exception as exc:
                 errors.append({"symbol": symbol, "error": str(exc)})
 

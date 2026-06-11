@@ -259,6 +259,34 @@ def _all_backtest_signals(symbol: str, label: str, rows: list[dict], min_history
     return signals
 
 
+def store_price_rows(symbol: str, rows: list[dict], db_path: Path = DB_PATH,
+                     source: str = "refresh") -> int:
+    """只写价格行,不重算回测(轻量,供请求路径/每日任务用)。"""
+    if not rows:
+        return 0
+    initialize_database(db_path)
+    symbol = symbol.upper()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with closing(connect(db_path)) as con:
+        con.executemany(
+            """
+            insert into market_prices (symbol, trade_date, open, high, low, close, volume, source, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict(symbol, trade_date) do update set
+                open = excluded.open, high = excluded.high, low = excluded.low,
+                close = excluded.close, volume = excluded.volume,
+                source = excluded.source, updated_at = excluded.updated_at
+            """,
+            [
+                (symbol, _date_text(r["date"]), r["open"], r["high"], r["low"],
+                 r["close"], int(r.get("volume", 0)), source, now)
+                for r in rows
+            ],
+        )
+        con.commit()
+    return len(rows)
+
+
 def sync_symbol_dataset(
     symbol: str,
     label: str,

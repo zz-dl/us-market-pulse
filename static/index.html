@@ -234,7 +234,7 @@ function forecastCard(f){
     <div class="hitline">模型分 <b>${f.score}</b> · 强度 ${strength(f.score,dir)}　|　${hit}</div>
     ${futBadge}
     <div class="metrics">
-      <div class="metric"><small>昨日涨跌</small><b>${pctTxt(ft.one_day)}</b></div>
+      <div class="metric"><small>美股上日 ${(f.as_of||"").slice(5)}</small><b>${pctTxt(ft.one_day)}</b></div>
       <div class="metric"><small>近20日</small><b>${pctTxt(ft.twenty_day)}</b></div>
       <div class="metric"><small>距200日线</small><b>${pctTxt(ft.dist_ma200)}</b></div>
     </div>

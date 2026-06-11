@@ -6,6 +6,8 @@ from math import isfinite
 
 from flask import Flask, jsonify, request, send_from_directory
 
+from datetime import timedelta, timezone as _tz
+
 from daily_runner import (
     BEIJING_TZ,
     create_daily_snapshot,
@@ -13,7 +15,13 @@ from daily_runner import (
     scheduler_status,
     start_scheduler,
 )
-from db_store import database_status, load_backtest_from_db, load_history_from_db, sync_symbol_dataset
+from db_store import (
+    database_status,
+    load_backtest_from_db,
+    load_history_from_db,
+    store_price_rows,
+    sync_symbol_dataset,
+)
 from forecast import build_forecast, run_backtest
 from market_data import (
     detect_news_risk_flags,
@@ -148,21 +156,45 @@ def _macro_risk_notes(ctx) -> list[str]:
     return notes
 
 
+def _expected_last_us_session() -> str:
+    """最近一个『已收盘』的美股交易日(美东16:00后算当天,否则前一交易日;周末回退)。"""
+    et = datetime.now(_tz.utc) - timedelta(hours=5)   # 近似美东(忽略夏令时,偏保守)
+    d = et.date()
+    if et.hour < 16:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d.isoformat()
+
+
+def _last_row_date(rows) -> str:
+    last = rows[-1]["date"]
+    return last.isoformat() if hasattr(last, "isoformat") else str(last)[:10]
+
+
 @app.route("/api/forecast")
 def api_forecast():
-    run_due_daily_job(UNIVERSE, refresh=True)
+    """轻量路径:打开页面即刷新到最新已收盘数据。
+    ⚠️ 不在请求里跑全量回测(全量回测在 Render 免费机要数分钟,曾导致 120s 超时→页面永远加载中);
+    回测汇总读 DB 里预存的(模型变更时本地重算后随 commit 上线)。"""
     forecasts = []
     errors = []
     market_context, vix_now = _build_market_context()
     macro_notes = _macro_risk_notes(market_context)
+    expected = _expected_last_us_session()
     for symbol, info in UNIVERSE.items():
         try:
             rows = load_history_from_db(symbol)
-            if rows:
-                meta = {"symbol": symbol, "source": "sqlite_db", "rows": len(rows)}
-            else:
-                rows, meta = ensure_history(symbol, refresh=False)
-                sync_symbol_dataset(symbol, info["label"], rows, source=meta.get("source", "cache"))
+            meta = {"symbol": symbol, "source": "sqlite_db", "rows": len(rows)}
+            if not rows or _last_row_date(rows) < expected:
+                # 数据过期(部署重置/隔夜新收盘)→ 只刷价格(秒级),不重算回测
+                try:
+                    fresh, fmeta = ensure_history(symbol, refresh=True)
+                except Exception:
+                    fresh, fmeta = None, None
+                if fresh and (not rows or _last_row_date(fresh) > _last_row_date(rows)):
+                    store_price_rows(symbol, fresh, source=fmeta.get("source", "refresh"))
+                    rows, meta = fresh, {**fmeta, "refreshed_to": _last_row_date(fresh)}
             fut = fetch_futures_change(symbol)
             fc = build_forecast(symbol, info["label"], rows, live_futures_pct=fut, vix_level=vix_now)
             fc["risks"] = list(fc.get("risks") or []) + macro_notes
