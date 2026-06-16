@@ -64,6 +64,10 @@ button{font:inherit}
 .futbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
 .futbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
 .futbadge.flat{color:var(--soft);background:var(--panel2)}
+.gapbadge{display:inline-block;margin-top:8px;margin-left:6px;font-size:12.5px;font-weight:800;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
+.gapbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
+.gapbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
+.gapbadge.flat{color:var(--amber);background:rgba(255,204,102,.1);border-color:rgba(255,204,102,.3)}
 
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 4px}
 .metric{background:var(--panel2);border:1px solid #1f2c3b;border-radius:7px;padding:8px}
@@ -137,7 +141,7 @@ details[open] summary:before{content:"▾ "}
   </div>
 
   <div class="actions"><button class="btn" id="refreshBtn">刷新预判</button></div>
-  <div class="notice">14:30 是第一版判断（含实时期货）。北京 20:30 后美国数据可能推翻，需复核。仅辅助，不构成投资建议。</div>
+  <div class="notice">打开即按最新美国收盘 + 实时期货判断 513500 / 159941 今日ETF压力。北京 20:30 后再看今晚美股方向。仅辅助，不构成投资建议。</div>
   <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中…</span></div>
 
   <section class="view active" id="view-forecast">
@@ -150,7 +154,7 @@ details[open] summary:before{content:"▾ "}
 </main>
 
 <nav class="tabbar">
-  <button class="tab active" data-view="forecast">今晚预判</button>
+  <button class="tab active" data-view="forecast">ETF预判</button>
   <button class="tab" data-view="strategy">策略与回测</button>
 </nav>
 
@@ -211,6 +215,13 @@ function forecastCard(f){
     const cls = fut>=0.1?"up":(fut<=-0.1?"dn":"flat");
     futBadge = `<div class="futbadge ${cls}">实时 ${e.fut} 期货 ${pctTxt(fut)}　<span style="font-weight:500;color:var(--muted)">决策时点盘口</span></div>`;
   }
+  const gap = f.etf_gap_proxy_pct;
+  let gapBadge = "";
+  if(gap!=null){
+    const cls = gap>=0.35?"up":(gap<=-0.35?"dn":"flat");
+    const label = gap<=-0.35 ? "今日ETF净值压力" : (gap>=0.35 ? "今日ETF净值支撑" : "今日ETF影响中性");
+    gapBadge = `<div class="gapbadge ${cls}">${label} ${pctTxt(gap)}</div>`;
+  }
 
   const ft = f.features||{};
   const drivers = (f.drivers||[]).slice(0,6).map(d=>`
@@ -232,7 +243,7 @@ function forecastCard(f){
         <span class="${dir==='bullish'?'on-bull':''}"><b>偏多 ▶</b></span></div>
     </div>
     <div class="hitline">模型分 <b>${f.score}</b> · 强度 ${strength(f.score,dir)}　|　${hit}</div>
-    ${futBadge}
+    ${futBadge}${gapBadge}
     <div class="metrics">
       <div class="metric"><small>美股上日 ${(f.as_of||"").slice(5)}</small><b>${pctTxt(ft.one_day)}</b></div>
       <div class="metric"><small>近20日</small><b>${pctTxt(ft.twenty_day)}</b></div>

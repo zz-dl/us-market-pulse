@@ -208,7 +208,7 @@ def api_forecast():
     return jsonify(clean_json({
         "ok": not errors,
         "beijing_time": beijing_now(),
-        "forecast_window": "北京时间 14:30 使用上一美股交易日收盘后的真实历史数据做第一版判断",
+        "forecast_window": "打开即使用最新美国收盘 + 实时期货，判断 A股时段 513500/159941 的今日ETF压力",
         "market_context": market_context,
         "forecasts": forecasts,
         "errors": errors,
