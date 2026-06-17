@@ -135,6 +135,7 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
     # 2:30pm 的 ES/NQ 期货是市场对"今晚"的实时下注,是日线数据看不到的最强信号。
     futures_used = None
     etf_gap_proxy = None
+    etf_signal = None
     if live_futures_pct is not None:
         contribution = round(0.55 * _clip(live_futures_pct, 2.5), 3)
         score += contribution
@@ -154,29 +155,45 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
 
         # A股交易时段的 QDII ETF 会先反映昨晚美股收盘，再叠加盘前期货。
         # 这和“今晚美股是否均值反弹”不是同一个问题；若隔夜净值压力明显为负，
-        # 不能给国内 ETF 显示可买/持有。
+        # 只作为国内 ETF 压力参考，不能覆盖今晚美股方向判断。
         etf_gap_proxy = round(f["one_day"] + 0.60 * live_futures_pct, 3)
         if etf_gap_proxy <= -0.35:
-            before_guard = score
-            guard_score = -0.95 if etf_gap_proxy <= -1.0 else -0.75
-            score = min(score, guard_score)
+            etf_signal = {
+                "direction": "bearish",
+                "label": "今日ETF净值压力",
+                "action": "ETF减仓/别追",
+                "value": etf_gap_proxy,
+            }
             drivers.append({
-                "label": "A股ETF隔夜净值压力",
+                "label": "ETF参考: 隔夜净值压力",
                 "value": etf_gap_proxy,
                 "effect": "bearish",
-                "contribution": round(score - before_guard, 3),
+                "contribution": 0.0,
             })
             risks.append(
-                f"A股ETF今日净值压力约 {etf_gap_proxy:+.2f}%：昨晚美股下跌尚未被期货修复，"
-                "今日不应按“今晚可能反弹”给可买/持有。"
+                f"ETF参考：今日净值压力约 {etf_gap_proxy:+.2f}%；这影响A股场内ETF，"
+                "不覆盖今晚美股方向判断。"
             )
         elif etf_gap_proxy >= 0.35:
+            etf_signal = {
+                "direction": "bullish",
+                "label": "今日ETF净值支撑",
+                "action": "ETF可持有",
+                "value": etf_gap_proxy,
+            }
             drivers.append({
-                "label": "A股ETF隔夜净值支撑",
+                "label": "ETF参考: 隔夜净值支撑",
                 "value": etf_gap_proxy,
                 "effect": "bullish",
                 "contribution": 0.0,
             })
+        else:
+            etf_signal = {
+                "direction": "neutral",
+                "label": "今日ETF影响中性",
+                "action": "ETF看场内溢价",
+                "value": etf_gap_proxy,
+            }
 
     # 非对称阈值:做多门槛低（上行漂移是真实的），做空门槛高（实证里做空≈掷硬币）。
     # bear 阈值 -0.70 经实测调优:更宽(-0.5)时偏空腿掉到 43-50% 亏损,收紧后剩下的偏空才有边。
@@ -203,7 +220,8 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
         "confidence": confidence,
         "live_futures_pct": futures_used,
         "etf_gap_proxy_pct": etf_gap_proxy,
-        "decision_basis": "china_qdii_etf" if etf_gap_proxy is not None else "us_next_session",
+        "etf_signal": etf_signal,
+        "decision_basis": "us_next_session",
         "vix_level": round(vix_level, 2) if vix_level is not None else None,
         "last_close": round(close, 3),
         "features": {k: round(v, 4) if isinstance(v, float) else v for k, v in f.items()},

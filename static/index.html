@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="美股预判">
-<title>美股预判 · 513500/159941</title>
+<title>美股今晚预判 · 纳指/标普</title>
 <style>
 :root{
   --bg:#090d12;--panel:#111821;--panel2:#151f2b;--line:#243141;
@@ -60,11 +60,11 @@ button{font:inherit}
 
 .hitline{font-size:12.5px;color:var(--soft);margin:10px 0 0;line-height:1.5}
 .hitline b{color:var(--text);font-size:14px}
-.futbadge{display:inline-block;margin-top:10px;font-size:12.5px;font-weight:700;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
+.futbadge{display:inline-block;margin-top:10px;max-width:100%;line-height:1.35;font-size:12.5px;font-weight:700;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
 .futbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
 .futbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
 .futbadge.flat{color:var(--soft);background:var(--panel2)}
-.gapbadge{display:inline-block;margin-top:8px;margin-left:6px;font-size:12.5px;font-weight:800;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
+.gapbadge{display:block;width:max-content;max-width:100%;line-height:1.35;margin-top:8px;font-size:12.5px;font-weight:800;border-radius:8px;padding:7px 10px;border:1px solid var(--line)}
 .gapbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
 .gapbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
 .gapbadge.flat{color:var(--amber);background:rgba(255,204,102,.1);border-color:rgba(255,204,102,.3)}
@@ -132,7 +132,7 @@ details[open] summary:before{content:"▾ "}
   <div class="top">
     <div class="brand">
       <h1>美股预判</h1>
-      <p>北京 14:30 · 决定 513500 / 159941 今晚买卖</p>
+      <p>北京 14:30 · 预判今晚纳指 / 标普方向</p>
     </div>
     <div class="timebox">
       <div class="time" id="clock">--:--</div>
@@ -141,7 +141,7 @@ details[open] summary:before{content:"▾ "}
   </div>
 
   <div class="actions"><button class="btn" id="refreshBtn">刷新预判</button></div>
-  <div class="notice">打开即按最新美国收盘 + 实时期货判断 513500 / 159941 今日ETF压力。北京 20:30 后再看今晚美股方向。仅辅助，不构成投资建议。</div>
+  <div class="notice">主判断是今晚纳指 / 标普方向；159941 / 513500 的ETF压力只作为第二天参考。仅辅助，不构成投资建议。</div>
   <div class="status-strip" id="dailyState"><b>自动任务</b><span>读取中…</span></div>
 
   <section class="view active" id="view-forecast">
@@ -154,7 +154,7 @@ details[open] summary:before{content:"▾ "}
 </main>
 
 <nav class="tabbar">
-  <button class="tab active" data-view="forecast">ETF预判</button>
+  <button class="tab active" data-view="forecast">今晚预判</button>
   <button class="tab" data-view="strategy">策略与回测</button>
 </nav>
 
@@ -164,9 +164,9 @@ const ETF = {
   SPY:{idx:"标普500",  etf:"博时标普500ETF", code:"513500", fut:"ES"},
 };
 const DIR = {
-  bullish:{txt:"偏多", act:"→ 可买 / 持有"},
-  bearish:{txt:"偏空", act:"→ 减仓 / 别追"},
-  neutral:{txt:"震荡", act:"→ 观望，方向不明"},
+  bullish:{txt:"偏多", act:"→ 今晚倾向上涨"},
+  bearish:{txt:"偏空", act:"→ 今晚倾向下跌"},
+  neutral:{txt:"震荡", act:"→ 方向不明"},
 };
 const effectText = {bullish:"利多", bearish:"利空", neutral:"中性"};
 let BT = {};   // symbol -> backtest
@@ -206,21 +206,23 @@ function forecastCard(f){
   const stat = ds[dir];
   let hit;
   if(dir==="neutral") hit = `震荡区间 → 历史上这类<b>不交易（观望）</b>`;
-  else if(stat && stat.win_rate!=null) hit = `这类<b>${di.txt}</b>信号历史命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
+  else if(stat && stat.win_rate!=null) hit = `日线模型这类<b>${di.txt}</b>信号历史命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
   else hit = `历史命中率数据生成中`;
 
   const fut = f.live_futures_pct;
   let futBadge = "";
   if(fut!=null){
     const cls = fut>=0.1?"up":(fut<=-0.1?"dn":"flat");
-    futBadge = `<div class="futbadge ${cls}">实时 ${e.fut} 期货 ${pctTxt(fut)}　<span style="font-weight:500;color:var(--muted)">决策时点盘口</span></div>`;
+    futBadge = `<div class="futbadge ${cls}">实时 ${e.fut} 期货 ${pctTxt(fut)}　<span style="font-weight:500;color:var(--muted)">今晚方向参考</span></div>`;
   }
   const gap = f.etf_gap_proxy_pct;
+  const etfSig = f.etf_signal || {};
   let gapBadge = "";
   if(gap!=null){
     const cls = gap>=0.35?"up":(gap<=-0.35?"dn":"flat");
-    const label = gap<=-0.35 ? "今日ETF净值压力" : (gap>=0.35 ? "今日ETF净值支撑" : "今日ETF影响中性");
-    gapBadge = `<div class="gapbadge ${cls}">${label} ${pctTxt(gap)}</div>`;
+    const label = etfSig.label || (gap<=-0.35 ? "今日ETF净值压力" : (gap>=0.35 ? "今日ETF净值支撑" : "今日ETF影响中性"));
+    const action = etfSig.action ? `　<span style="font-weight:500;color:var(--muted)">${etfSig.action}</span>` : "";
+    gapBadge = `<div class="gapbadge ${cls}">ETF参考：${label} ${pctTxt(gap)}${action}</div>`;
   }
 
   const ft = f.features||{};
@@ -232,7 +234,7 @@ function forecastCard(f){
 
   return `<article class="card">
     <div class="card-head">
-      <div class="etf">${e.etf} ${e.code}<small>${e.idx}（用 ${f.symbol} 代理）· 数据至 ${f.as_of}</small></div>
+      <div class="etf">${e.idx}<small>${e.etf} ${e.code} 参考 · 用 ${f.symbol} 代理 · 数据至 ${f.as_of}</small></div>
       <div class="pill">收盘 ${money(f.last_close)}</div>
     </div>
     <div class="verdict ${dir}"><div class="v-main">${di.txt}</div><div class="v-act">${di.act}</div></div>

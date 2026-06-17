@@ -69,12 +69,14 @@ check("win rate is bounded", 0 <= backtest["win_rate"] <= 100, backtest["win_rat
 check("recent samples are capped", len(backtest["recent_signals"]) <= 12, len(backtest["recent_signals"]))
 check("annual summaries exist", len(backtest["annual"]) >= 1, backtest["annual"])
 
-qqq_gap_down = build_forecast("QQQ", "Nasdaq-100", make_uptrend_with_last_drop(-1.9), live_futures_pct=-0.8)
-check("QQQ ETF gap-down pressure overrides mean reversion", qqq_gap_down["direction"] == "bearish", qqq_gap_down)
-check("QQQ ETF gap proxy is exposed", qqq_gap_down["etf_gap_proxy_pct"] < -2.0, qqq_gap_down)
+qqq_rebound = build_forecast("QQQ", "Nasdaq-100", make_uptrend_with_last_drop(-1.9), live_futures_pct=1.61)
+check("QQQ futures rebound drives tonight US forecast", qqq_rebound["direction"] == "bullish", qqq_rebound)
+check("QQQ ETF pressure remains separately exposed", qqq_rebound["etf_gap_proxy_pct"] < -0.35, qqq_rebound)
+check("QQQ ETF pressure does not set primary decision basis", qqq_rebound["decision_basis"] == "us_next_session", qqq_rebound)
+check("QQQ ETF pressure has its own signal", qqq_rebound["etf_signal"]["direction"] == "bearish", qqq_rebound)
 
-spy_gap_down = build_forecast("SPY", "S&P 500", make_uptrend_with_last_drop(-0.6), live_futures_pct=0.28)
-check("SPY ETF negative overnight gap is not bullish", spy_gap_down["direction"] == "bearish", spy_gap_down)
-check("SPY ETF gap proxy is exposed", spy_gap_down["etf_gap_proxy_pct"] < -0.35, spy_gap_down)
+spy_rebound = build_forecast("SPY", "S&P 500", make_uptrend_with_last_drop(-0.6), live_futures_pct=1.16)
+check("SPY futures rebound drives tonight US forecast", spy_rebound["direction"] == "bullish", spy_rebound)
+check("SPY ETF pressure can be neutral separately", spy_rebound["etf_signal"]["direction"] == "neutral", spy_rebound)
 
 print("ALL TESTS PASSED")

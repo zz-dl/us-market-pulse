@@ -41,7 +41,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-2-render-cron-daily-1430"
+APP_VERSION = "mvp-3-us-session-primary"
 
 
 def clean_json(value):
@@ -208,7 +208,7 @@ def api_forecast():
     return jsonify(clean_json({
         "ok": not errors,
         "beijing_time": beijing_now(),
-        "forecast_window": "打开即使用最新美国收盘 + 实时期货，判断 A股时段 513500/159941 的今日ETF压力",
+        "forecast_window": "打开即使用最新美国收盘 + 实时期货，预判今晚纳指/标普方向；ETF压力仅作次日参考",
         "market_context": market_context,
         "forecasts": forecasts,
         "errors": errors,
