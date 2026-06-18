@@ -126,7 +126,8 @@ def _score_from_features(f: dict, vix_level: float | None = None) -> tuple[float
 
 def build_forecast(symbol: str, label: str, rows: list[dict],
                    live_futures_pct: float | None = None,
-                   vix_level: float | None = None) -> dict:
+                   vix_level: float | None = None,
+                   event_mode: dict | None = None) -> dict:
     rows = sorted(rows, key=lambda r: r["date"])
     f = _features(rows)
     score, drivers, risks = _score_from_features(f, vix_level=vix_level)
@@ -199,12 +200,38 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
     # bear 阈值 -0.70 经实测调优:更宽(-0.5)时偏空腿掉到 43-50% 亏损,收紧后剩下的偏空才有边。
     # 对应你的用法:bullish=买/持有，bearish=减仓/别追，neutral=观望。
     if score > 0.30:
-        direction = "bullish"
+        model_direction = "bullish"
     elif score < -0.70:
-        direction = "bearish"
+        model_direction = "bearish"
     else:
+        model_direction = "neutral"
+    model_score = round(score, 3)
+    signal_strength = min(82, max(35, round(48 + abs(score) * 12, 1)))
+
+    event_mode = event_mode or {"active": False, "status": "none"}
+    if event_mode.get("active") and event_mode.get("status") == "pending":
         direction = "neutral"
-    confidence = min(82, max(35, round(48 + abs(score) * 12, 1)))
+        final_score = 0.0
+        drivers.append({
+            "label": f"重大事件模式：{event_mode.get('name', '宏观数据')}",
+            "value": "pending",
+            "effect": "neutral",
+            "contribution": 0.0,
+        })
+        risks.insert(
+            0,
+            f"{event_mode.get('name', '重大宏观事件')}尚未公布：最终收盘方向暂停判断；"
+            f"基础模型为{model_direction}，仅保留开盘参考。",
+        )
+    else:
+        direction = model_direction
+        final_score = model_score
+
+    if live_futures_pct is None or abs(live_futures_pct) < 0.30:
+        opening_bias = "neutral"
+    else:
+        opening_bias = "bullish" if live_futures_pct > 0 else "bearish"
+
     close = f["last_close"]
     invalidation = [
         f"若盘前/期货跌破参考收盘 {close * 0.992:.2f}，多头判断失效",
@@ -216,8 +243,13 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
         "proxy_note": f"{symbol} is used as the tradeable proxy for {label}",
         "as_of": f["last_date"],
         "direction": direction,
-        "score": round(score, 3),
-        "confidence": confidence,
+        "score": final_score,
+        "model_direction": model_direction,
+        "model_score": model_score,
+        "opening_bias": opening_bias,
+        "signal_strength": signal_strength,
+        "confidence": signal_strength,
+        "event_mode": event_mode,
         "live_futures_pct": futures_used,
         "etf_gap_proxy_pct": etf_gap_proxy,
         "etf_signal": etf_signal,

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -21,6 +22,96 @@ FUTURES_SYMBOLS = {
     "SPY": "ES=F",
     "QQQ": "NQ=F",
 }
+
+# Federal Reserve official/tentative decision dates. The release occurs at 2:00 p.m.
+# U.S. Eastern time, which is around 02:00/03:00 Beijing time the next day.
+FOMC_DECISION_DATES = {
+    "2026-01-28",
+    "2026-03-18",
+    "2026-04-29",
+    "2026-06-17",
+    "2026-07-29",
+    "2026-09-16",
+    "2026-10-28",
+    "2026-12-09",
+    "2027-01-27",
+    "2027-03-17",
+    "2027-04-28",
+    "2027-06-09",
+    "2027-07-28",
+    "2027-09-15",
+    "2027-10-27",
+    "2027-12-08",
+}
+
+_MACRO_EVENT_PATTERNS = (
+    ("FOMC 利率决议", re.compile(r"\b(fomc|federal reserve|fed meeting|fed decision|rate decision)\b", re.I)),
+    ("CPI 通胀数据", re.compile(r"\b(cpi|consumer price index|inflation report)\b", re.I)),
+    ("美国非农就业报告", re.compile(r"\b(nonfarm|non-farm|payrolls|jobs report|employment report)\b", re.I)),
+    ("PCE 通胀数据", re.compile(r"\b(pce|personal consumption expenditures)\b", re.I)),
+)
+_PENDING_EVENT_PATTERN = re.compile(
+    r"\b(ahead of|await|awaiting|before|due|later today|decision today|report today|"
+    r"release today|set to release|scheduled|meeting today|focus turns to)\b",
+    re.I,
+)
+_RESOLVED_EVENT_PATTERN = re.compile(
+    r"\b(after|released|showed|rose|fell|holds|held|raises|raised|cuts|cut)\b",
+    re.I,
+)
+
+
+def _inactive_event_mode() -> dict:
+    return {
+        "active": False,
+        "status": "none",
+        "name": "",
+        "reason": "",
+        "release_time_beijing": "",
+        "source": "",
+    }
+
+
+def detect_macro_event_mode(headlines: list[dict], now: datetime | None = None) -> dict:
+    """Detect a known high-impact U.S. macro release that is still pending.
+
+    `now` is expected to be Beijing local time when supplied by the app. FOMC
+    dates use the official calendar; CPI/jobs/PCE use explicit pending-language
+    headlines so ordinary retrospective news does not freeze the forecast.
+    """
+    now = now or datetime.now()
+    day_text = now.date().isoformat()
+    if day_text in FOMC_DECISION_DATES:
+        release_deadline = datetime.combine(now.date() + timedelta(days=1), dt_time(5, 0))
+        if now.tzinfo is not None:
+            release_deadline = release_deadline.replace(tzinfo=now.tzinfo)
+        if now < release_deadline:
+            return {
+                "active": True,
+                "status": "pending",
+                "name": "FOMC 利率决议",
+                "reason": "美联储声明、点阵图或发布会尚未公布，盘前期货不能代表最终收盘方向。",
+                "release_time_beijing": "次日约 02:00-04:00",
+                "source": "official_calendar",
+            }
+
+    for item in headlines or []:
+        title = str(item.get("title") or "").strip()
+        if not title or _RESOLVED_EVENT_PATTERN.search(title):
+            continue
+        if not _PENDING_EVENT_PATTERN.search(title):
+            continue
+        for name, pattern in _MACRO_EVENT_PATTERNS:
+            if pattern.search(title):
+                return {
+                    "active": True,
+                    "status": "pending",
+                    "name": name,
+                    "reason": f"新闻显示重大数据仍待公布：{title}",
+                    "release_time_beijing": "今晚/次日凌晨",
+                    "source": "news_headline",
+                }
+    return _inactive_event_mode()
 
 
 def fetch_quote_change(symbol: str, timeout: float = 8.0) -> dict | None:

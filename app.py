@@ -24,6 +24,7 @@ from db_store import (
 )
 from forecast import build_forecast, run_backtest
 from market_data import (
+    detect_macro_event_mode,
     detect_news_risk_flags,
     ensure_history,
     fetch_futures_change,
@@ -41,7 +42,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-3-us-session-primary"
+APP_VERSION = "mvp-4-macro-event-guard"
 
 
 def clean_json(value):
@@ -126,17 +127,19 @@ def api_refresh():
 
 def _build_market_context():
     """实时市场环境(展示层):汇率/美元/利率/VIX + 新闻标题 + 风险主题。
-    注:新闻对模型分的影响已经由实时期货承载(新闻→期货价格→score);此处供人工参考。"""
+    重大宏观事件会单独触发事件模式，不能假定盘前期货已包含尚未公布的结果。"""
     vix_now = fetch_vix_level()
+    news = fetch_news_headlines(10)
     ctx = {
         "vix": vix_now,
         "usdcny": fetch_quote_change("CNY=X"),
         "dxy": fetch_quote_change("DX-Y.NYB"),
         "us10y": fetch_quote_change("^TNX"),
-        "news": fetch_news_headlines(6),
-        "note": "新闻/汇率等最新冲击通过『实时期货』进入模型分；本面板供人工参考。",
+        "news": news,
+        "note": "已公布冲击参考实时期货；FOMC/CPI/非农/PCE 尚未公布时进入事件模式，暂停收盘方向判断。",
     }
     ctx["risk_flags"] = detect_news_risk_flags(ctx["news"])
+    ctx["macro_event"] = detect_macro_event_mode(news, now=datetime.now(BEIJING_TZ))
     return ctx, vix_now
 
 
@@ -152,7 +155,7 @@ def _macro_risk_notes(ctx) -> list[str]:
     if (dxy.get("chg_pct") or 0) >= 0.5:
         notes.append(f"美元指数大涨 +{dxy['chg_pct']:.2f}% → 历史上美元急升日次日偏弱（50-53%）")
     if ctx.get("risk_flags"):
-        notes.append("今日新闻含风险主题：" + "、".join(ctx["risk_flags"]) + " → 留意波动放大（方向不可预判，以实时期货为准）")
+        notes.append("今日新闻含风险主题：" + "、".join(ctx["risk_flags"]) + " → 留意波动放大")
     return notes
 
 
@@ -196,7 +199,14 @@ def api_forecast():
                     store_price_rows(symbol, fresh, source=fmeta.get("source", "refresh"))
                     rows, meta = fresh, {**fmeta, "refreshed_to": _last_row_date(fresh)}
             fut = fetch_futures_change(symbol)
-            fc = build_forecast(symbol, info["label"], rows, live_futures_pct=fut, vix_level=vix_now)
+            fc = build_forecast(
+                symbol,
+                info["label"],
+                rows,
+                live_futures_pct=fut,
+                vix_level=vix_now,
+                event_mode=market_context.get("macro_event"),
+            )
             fc["risks"] = list(fc.get("risks") or []) + macro_notes
             forecasts.append({
                 **fc,
@@ -208,13 +218,13 @@ def api_forecast():
     return jsonify(clean_json({
         "ok": not errors,
         "beijing_time": beijing_now(),
-        "forecast_window": "打开即使用最新美国收盘 + 实时期货，预判今晚纳指/标普方向；ETF压力仅作次日参考",
+        "forecast_window": "预判今晚收盘方向；实时期货仅代表开盘参考，重大数据公布前自动进入事件观望",
         "market_context": market_context,
         "forecasts": forecasts,
         "errors": errors,
         "limits": [
             "免费 MVP 使用 SPY/QQQ 日线代理指数，不等同付费分钟线或期货盘口回测。",
-            "北京时间 20:30 后的美国宏观数据可能推翻 14:30 版判断。",
+            "FOMC/CPI/非农/PCE 公布前暂停收盘方向判断；实时期货仅表示当时的开盘倾向。",
         ],
     }))
 

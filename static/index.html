@@ -68,6 +68,9 @@ button{font:inherit}
 .gapbadge.up{color:var(--green);background:rgba(88,214,141,.1);border-color:rgba(88,214,141,.3)}
 .gapbadge.dn{color:var(--red);background:rgba(255,107,107,.1);border-color:rgba(255,107,107,.3)}
 .gapbadge.flat{color:var(--amber);background:rgba(255,204,102,.1);border-color:rgba(255,204,102,.3)}
+.event-alert{margin-top:10px;border:1px solid rgba(244,184,92,.48);background:rgba(244,184,92,.11);
+  color:#ffe0aa;border-radius:8px;padding:9px 10px;font-size:12px;line-height:1.5}
+.event-alert b{color:#fff0c9}
 
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 4px}
 .metric{background:var(--panel2);border:1px solid #1f2c3b;border-radius:7px;padding:8px}
@@ -200,12 +203,20 @@ function strength(score,dir){
 
 function forecastCard(f){
   const e = ETF[f.symbol] || {idx:f.display,etf:f.symbol,code:"",fut:"期货"};
-  const dir = f.direction, di = DIR[dir] || {txt:dir,act:""};
-  const pos = scorePos(f.score);
+  const event = f.event_mode || {};
+  const dir = f.direction;
+  const di = event.active
+    ? {txt:"事件观望",act:"→ 重大数据公布前暂停收盘判断"}
+    : (DIR[dir] || {txt:dir,act:""});
+  const pos = event.active ? 50 : scorePos(f.score);
   const ds = (BT[f.symbol]||{}).direction_stats || {};
   const stat = ds[dir];
   let hit;
-  if(dir==="neutral") hit = `震荡区间 → 历史上这类<b>不交易（观望）</b>`;
+  if(event.active){
+    const raw = DIR[f.model_direction] || {txt:f.model_direction||"未知"};
+    hit = `基础模型 <b>${raw.txt}</b>（模型分 ${f.model_score}，信号强度 ${f.signal_strength}）· 最终<b>暂停判断</b>`;
+  }
+  else if(dir==="neutral") hit = `震荡区间 → 历史上这类<b>不交易（观望）</b>`;
   else if(stat && stat.win_rate!=null) hit = `日线模型这类<b>${di.txt}</b>信号历史命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
   else hit = `历史命中率数据生成中`;
 
@@ -213,8 +224,11 @@ function forecastCard(f){
   let futBadge = "";
   if(fut!=null){
     const cls = fut>=0.1?"up":(fut<=-0.1?"dn":"flat");
-    futBadge = `<div class="futbadge ${cls}">实时 ${e.fut} 期货 ${pctTxt(fut)}　<span style="font-weight:500;color:var(--muted)">今晚方向参考</span></div>`;
+    futBadge = `<div class="futbadge ${cls}">开盘参考：实时 ${e.fut} 期货 ${pctTxt(fut)}
+     　<span style="font-weight:500;color:var(--muted)">不代表最终收盘</span></div>`;
   }
+  const eventAlert = event.active ? `<div class="event-alert"><b>⚠️ ${event.name}</b> 尚未公布
+    （${event.release_time_beijing||"今晚/次日凌晨"}）。${event.reason||"事件结果可能使盘中方向反转。"}</div>` : "";
   const gap = f.etf_gap_proxy_pct;
   const etfSig = f.etf_signal || {};
   let gapBadge = "";
@@ -244,8 +258,9 @@ function forecastCard(f){
         <span class="${dir==='neutral'?'on-neu':''}"><b>震荡</b></span>
         <span class="${dir==='bullish'?'on-bull':''}"><b>偏多 ▶</b></span></div>
     </div>
-    <div class="hitline">模型分 <b>${f.score}</b> · 强度 ${strength(f.score,dir)}　|　${hit}</div>
-    ${futBadge}${gapBadge}
+    <div class="hitline">${event.active?"事件模式":"模型分"} <b>${event.active?"观望":f.score}</b>
+      ${event.active?"":` · 信号强度 ${f.signal_strength??f.confidence??strength(f.score,dir)}`}　|　${hit}</div>
+    ${eventAlert}${futBadge}${gapBadge}
     <div class="metrics">
       <div class="metric"><small>美股上日 ${(f.as_of||"").slice(5)}</small><b>${pctTxt(ft.one_day)}</b></div>
       <div class="metric"><small>近20日</small><b>${pctTxt(ft.twenty_day)}</b></div>
@@ -273,14 +288,17 @@ function envCard(ctx){
     chipHtml("美债10Y", ctx.us10y, "%", 2),
   ].join("");
   const flags = (ctx.risk_flags||[]).map(f=>`<span class="flag">⚠️ ${f}</span>`).join("");
+  const event = ctx.macro_event || {};
+  const eventAlert = event.active ? `<div class="event-alert"><b>事件模式：${event.name}</b><br>
+    公布时间 ${event.release_time_beijing||"今晚/次日凌晨"}；公布前收盘方向统一观望。</div>` : "";
   const news = (ctx.news||[]).slice(0,5).map(n=>
     `<li><a href="${n.link}" target="_blank" rel="noopener">${n.title}</a></li>`).join("");
   return `<article class="card" style="grid-column:1/-1">
     <div class="etf">市场环境（打开即实时刷新）<small>汇率 / 美元 / 利率 / VIX / 最新新闻</small></div>
     <div class="env-chips">${chips}</div>
-    ${flags}
+    ${eventAlert}${flags}
     ${news?`<ul class="newslist">${news}</ul>`:""}
-    <div class="env-note">📌 ${ctx.note||"新闻/汇率等最新冲击通过『实时期货』进入模型分；本面板供人工参考。"}</div>
+    <div class="env-note">📌 ${ctx.note||"已公布冲击参考实时期货；尚未公布的重大事件会暂停收盘方向判断。"}</div>
   </article>`;
 }
 
@@ -333,9 +351,10 @@ async function loadStrategy(){
     <div class="edge"><div class="n">4</div><div><b>连跌 3 天+ 抄底</b>：连跌3天后次日上涨 58–64%，最强单一信号。</div></div>
     <div class="edge"><div class="n">5</div><div><b>平静市回调（VIX&lt;15 且昨跌）</b>：次日上涨 56–60%（VIX 日线全历史已入库回测）。</div></div>
     <div class="edge"><div class="n">6</div><div><b>周五效应</b>：双标的双窗稳健的小幅看多，权重很小。</div></div>
+    <div class="edge"><div class="n">7</div><div><b>重大事件保护</b>：FOMC、CPI、非农、PCE 尚未公布时，基础模型只作参考，最终收盘方向强制观望。</div></div>
     <p style="margin-top:12px"><b>非对称</b>：做多门槛低、做空门槛极高（实证里做空≈掷硬币，宽阈值时偏空腿只有 43–50% 会亏，收紧后剩下的偏空才有边）。1/5/20 日“动量”、VIX&gt;25、VIX飙升等实测不稳健，均不采纳。</p>
-    <p>14:30 实盘再叠加 <b>ES/NQ 实时期货</b>（市场对今晚的实时下注）作修正——这是日线回测看不到、但实战最强的信号，故回测命中率不含此项。</p>
-    <p style="color:var(--muted)">⚠️ 老实说：日线价格特征预测隔夜方向 ~54–57% 是现实天花板，别指望更高。真正价值在“统计边 + 实时期货盘口”的组合，用来辅助 513500/159941 的买卖，而非神算。</p>
+    <p>14:30 实盘叠加 <b>ES/NQ 实时期货</b>，但它只代表当时的开盘倾向，不保证最终收盘；回测命中率也不包含实时期货。</p>
+    <p style="color:var(--muted)">⚠️ 日线价格特征预测隔夜方向约 54–57% 已接近现实上限。界面中的数值是“信号强度”，不是上涨概率。</p>
   </article>`;
   try{
     const bt=await api("/api/backtest");

@@ -9,7 +9,14 @@ from typing import Callable
 
 from db_store import load_backtest_from_db, store_price_rows, upsert_vix_rows
 from forecast import build_forecast
-from market_data import ensure_history, fetch_futures_change, fetch_vix_history_rows, fetch_vix_level
+from market_data import (
+    detect_macro_event_mode,
+    ensure_history,
+    fetch_futures_change,
+    fetch_news_headlines,
+    fetch_vix_history_rows,
+    fetch_vix_level,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -84,6 +91,8 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
         except Exception:
             pass
         vix_now = fetch_vix_level()
+        news = fetch_news_headlines(10)
+        event_mode = detect_macro_event_mode(news, now=run_at)
 
         for symbol, info in universe.items():
             try:
@@ -94,7 +103,14 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
                 data.append(meta)
                 fut = fetch_futures_change(symbol)
                 forecasts.append({
-                    **build_forecast(symbol, info["label"], rows, live_futures_pct=fut, vix_level=vix_now),
+                    **build_forecast(
+                        symbol,
+                        info["label"],
+                        rows,
+                        live_futures_pct=fut,
+                        vix_level=vix_now,
+                        event_mode=event_mode,
+                    ),
                     "display": info["display"],
                     "data_meta": meta,
                 })
@@ -110,6 +126,7 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
             "run_at_beijing": run_at.isoformat(timespec="seconds"),
             "scheduled_for": "14:30 Asia/Shanghai",
             "data_source": "Yahoo Chart API primary, Stooq fallback",
+            "macro_event": event_mode,
             "forecasts": forecasts,
             "backtests": backtests,
             "data": data,

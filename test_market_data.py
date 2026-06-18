@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from market_data import parse_stooq_csv, latest_bar, rows_to_csv_text
+from market_data import detect_macro_event_mode, latest_bar, parse_stooq_csv, rows_to_csv_text
 
 
 def check(label, cond, detail=""):
@@ -23,5 +23,16 @@ check("numeric close parsed", rows[1]["close"] == 611.50, rows[1]["close"])
 check("latest row is final date", latest_bar(rows)["date"] == date(2026, 6, 8))
 round_trip = parse_stooq_csv(rows_to_csv_text(rows))
 check("rows serialize back to parseable csv", round_trip[-1]["volume"] == 81000000)
+
+fomc_event = detect_macro_event_mode([], now=datetime(2026, 6, 17, 14, 30))
+check("FOMC calendar date enters event mode", fomc_event["active"] is True, fomc_event)
+check("FOMC event is pending before Beijing overnight release", fomc_event["status"] == "pending", fomc_event)
+check("FOMC event name is explicit", "FOMC" in fomc_event["name"], fomc_event)
+
+headline_event = detect_macro_event_mode([
+    {"title": "Stocks steady ahead of CPI inflation report due later today"}
+], now=datetime(2026, 7, 14, 14, 30))
+check("CPI headline enters event mode", headline_event["active"] is True, headline_event)
+check("CPI event name is explicit", "CPI" in headline_event["name"], headline_event)
 
 print("ALL TESTS PASSED")

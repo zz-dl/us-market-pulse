@@ -79,4 +79,24 @@ spy_rebound = build_forecast("SPY", "S&P 500", make_uptrend_with_last_drop(-0.6)
 check("SPY futures rebound drives tonight US forecast", spy_rebound["direction"] == "bullish", spy_rebound)
 check("SPY ETF pressure can be neutral separately", spy_rebound["etf_signal"]["direction"] == "neutral", spy_rebound)
 
+event_mode = {
+    "active": True,
+    "status": "pending",
+    "name": "FOMC 利率决议",
+    "reason": "重大政策结果尚未公布",
+    "release_time_beijing": "次日约 02:00",
+}
+fomc_qqq = build_forecast(
+    "QQQ",
+    "Nasdaq-100",
+    make_uptrend_with_last_drop(-1.9),
+    live_futures_pct=1.61,
+    event_mode=event_mode,
+)
+check("pending macro event forces neutral close forecast", fomc_qqq["direction"] == "neutral", fomc_qqq)
+check("pending macro event keeps raw model direction", fomc_qqq["model_direction"] == "bullish", fomc_qqq)
+check("pending macro event keeps opening futures bias separate", fomc_qqq["opening_bias"] == "bullish", fomc_qqq)
+check("pending macro event is exposed", fomc_qqq["event_mode"]["active"] is True, fomc_qqq)
+check("confidence is renamed as signal strength", fomc_qqq["signal_strength"] == fomc_qqq["confidence"], fomc_qqq)
+
 print("ALL TESTS PASSED")

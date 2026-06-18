@@ -5,7 +5,7 @@
 映射到你的两只 ETF(博时标普500 513500 / 广发纳指 159941),推送到 GraceClaude。
 
 复用 F:\FeishuBridge\config.json 的飞书应用凭证 + 收件人 open_id。
-定位:辅助判断,不是算命;回测命中率≈54%,20:30 后美国数据可能推翻。
+定位:辅助判断,不是算命;回测命中率≈54%,重大宏观数据公布前暂停收盘方向判断。
 """
 
 from __future__ import annotations
@@ -56,27 +56,31 @@ def build_message() -> str:
         if not f:
             L.append("  (预判获取失败)")
             continue
+        event = f.get("event_mode") or {}
         d = DIR_LABEL.get(f.get("direction"), f.get("direction", "—"))
-        conf = f.get("confidence")
+        strength = f.get("signal_strength", f.get("confidence"))
         fut = f.get("live_futures_pct")
         fut_name = "ES" if sym == "SPY" else "NQ"
         wr = win.get(sym)
         line = f"  {d}"
-        if conf is not None:
-            line += f"  置信度{conf}%"
+        if strength is not None:
+            line += f"  信号强度{strength}"
         if wr is not None:
             line += f"  ·回测{wr}%"
         L.append(line)
         if fut is not None:
-            L.append(f"  实时{fut_name}期货 {fut:+.2f}%")
+            L.append(f"  开盘参考：实时{fut_name}期货 {fut:+.2f}%（不代表收盘）")
+        if event.get("active"):
+            raw = DIR_LABEL.get(f.get("model_direction"), f.get("model_direction", "—"))
+            L.append(f"  ⚠️ {event.get('name')}待公布：基础模型{raw}，最终收盘方向暂停判断")
         # 最关键的一条提示(抄底信号 / 期货方向 / 风险)
         risks = f.get("risks") or []
         if risks:
             L.append(f"  · {risks[0]}")
 
     L.append("")
-    L.append("⚠️ 回测命中率≈54%(日线模型上限),实时期货是当下盘口修正;")
-    L.append("   20:30 后美国数据可能推翻;bearish=减仓别追、bullish=可买持有。不构成投资建议。")
+    L.append("⚠️ 回测命中率≈54%(仅日线模型);实时期货只作开盘参考。")
+    L.append("   FOMC/CPI/非农/PCE 公布前进入事件观望，不给强方向。不构成投资建议。")
     return "\n".join(L)
 
 
