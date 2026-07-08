@@ -17,9 +17,11 @@ from daily_runner import (
 )
 from db_store import (
     database_status,
+    evaluate_premium_gate,
     load_backtest_from_db,
     load_etf_backtest,
     load_history_from_db,
+    store_etf_premium,
     store_forecast_snapshot,
     store_price_rows,
     sync_symbol_dataset,
@@ -29,6 +31,7 @@ from market_data import (
     detect_macro_event_mode,
     detect_news_risk_flags,
     ensure_history,
+    fetch_etf_premium,
     fetch_futures_change,
     fetch_news_headlines,
     fetch_quote_change,
@@ -44,7 +47,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-5-etf-scoreboard"
+APP_VERSION = "mvp-6-premium-gate-web"
 
 
 def clean_json(value):
@@ -215,6 +218,14 @@ def api_forecast():
     market_context, vix_now = _build_market_context()
     macro_notes = _macro_risk_notes(market_context)
     expected = _expected_last_us_session()
+    # QDII 溢价卡口(盈亏最大单一噪音源):实时抓取,失败静默降级(Render 若被拦则不显示)
+    premiums = {}
+    try:
+        premiums = fetch_etf_premium(timeout=5.0)
+        if premiums:
+            store_etf_premium(premiums)   # 部署周期内积累,供3日膨胀基线
+    except Exception:
+        premiums = {}
     for symbol, info in UNIVERSE.items():
         try:
             rows = load_history_from_db(symbol)
@@ -239,6 +250,24 @@ def api_forecast():
             )
             fc = _apply_data_quality_guard(fc, expected, _last_row_date(rows) if rows else None)
             fc["risks"] = list(fc.get("risks") or []) + macro_notes
+            # 溢价卡口:block 时置顶警示(即使模型偏多,今天也别买)
+            prem = premiums.get(symbol)
+            if prem:
+                gate = evaluate_premium_gate(prem["etf_code"], prem["premium_pct"])
+                fc["etf_premium"] = {**prem, "gate": gate}
+                exp = gate.get("expansion_3d_pp")
+                exp_txt = f",3日{exp:+.1f}pp" if exp is not None else ""
+                base_txt = (f"场内ETF {prem['etf_code']} 溢价 {prem['premium_pct']:.1f}%"
+                            f"(价{prem['price']:.3f}/净值{prem['nav']:.4f}{exp_txt})")
+                if gate["level"] == "block":
+                    fc["risks"].insert(0, f"🚫 溢价卡口禁买:{base_txt}。{gate['message']}")
+                elif gate["level"] == "warn":
+                    fc["risks"].insert(0, f"⚠️ {base_txt}。{gate['message']}")
+                else:
+                    fc["risks"].append(base_txt)
+            else:
+                fc["etf_premium"] = None
+                fc["risks"].append("溢价抓取失败:买场内ETF前务必手动查看实时溢价率(QDII盈亏最大噪音源)")
             try:
                 fc["snapshot_id"] = store_forecast_snapshot(fc, market_context)
             except Exception as snap_exc:

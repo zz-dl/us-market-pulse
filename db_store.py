@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 import json
 from contextlib import closing
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from forecast import build_forecast, pct, run_backtest
@@ -426,8 +426,11 @@ def evaluate_premium_gate(etf_code: str, current_premium: float,
                           db_path: Path = DB_PATH) -> dict:
     """溢价卡口:近3个交易日溢价膨胀 >2pp → block(禁买);
     溢价绝对值 >8% → warn。数据不足时只按绝对值判断。
-    实证依据(2026-07-08):159941 溢价单日波动可达 ±2pp,远大于模型方向边。"""
+    实证依据(2026-07-08):159941 溢价单日波动可达 ±2pp,远大于模型方向边。
+    基线必须新鲜:只用最近10个自然日内的记录算膨胀(Render上git带的历史可能过期数周)。"""
     history = load_premium_history(etf_code, limit=5, db_path=db_path)
+    cutoff = (date.today() - timedelta(days=10)).isoformat()
+    history = [h for h in history if h["trade_date"] >= cutoff]
     expansion = None
     if len(history) >= 3:
         expansion = round(current_premium - history[-3]["premium_pct"], 2)
