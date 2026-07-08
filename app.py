@@ -19,6 +19,7 @@ from db_store import (
     database_status,
     load_backtest_from_db,
     load_history_from_db,
+    store_forecast_snapshot,
     store_price_rows,
     sync_symbol_dataset,
 )
@@ -175,6 +176,34 @@ def _last_row_date(rows) -> str:
     return last.isoformat() if hasattr(last, "isoformat") else str(last)[:10]
 
 
+def _apply_data_quality_guard(forecast: dict, expected_last_session: str, actual_last_session: str | None) -> dict:
+    fresh = bool(actual_last_session and actual_last_session >= expected_last_session)
+    forecast["data_quality"] = {
+        "status": "fresh" if fresh else "stale",
+        "fresh": fresh,
+        "expected_last_session": expected_last_session,
+        "actual_last_session": actual_last_session,
+        "message": "" if fresh else (
+            f"最新美股收盘数据未确认：应到 {expected_last_session}，当前只到 {actual_last_session or '无数据'}。"
+        ),
+    }
+    if fresh:
+        return forecast
+
+    forecast["data_quality"]["blocked_direction"] = forecast.get("direction")
+    forecast["direction"] = "neutral"
+    forecast["score"] = 0.0
+    forecast["decision_basis"] = "data_pending"
+    forecast.setdefault("drivers", []).append({
+        "label": "收盘数据未确认",
+        "value": actual_last_session or "none",
+        "effect": "neutral",
+        "contribution": 0.0,
+    })
+    forecast.setdefault("risks", []).insert(0, forecast["data_quality"]["message"] + " 暂停买入/卖出方向判断，等待刷新后再看。")
+    return forecast
+
+
 @app.route("/api/forecast")
 def api_forecast():
     """轻量路径:打开页面即刷新到最新已收盘数据。
@@ -207,7 +236,12 @@ def api_forecast():
                 vix_level=vix_now,
                 event_mode=market_context.get("macro_event"),
             )
+            fc = _apply_data_quality_guard(fc, expected, _last_row_date(rows) if rows else None)
             fc["risks"] = list(fc.get("risks") or []) + macro_notes
+            try:
+                fc["snapshot_id"] = store_forecast_snapshot(fc, market_context)
+            except Exception as snap_exc:
+                fc["snapshot_error"] = str(snap_exc)
             forecasts.append({
                 **fc,
                 "display": info["display"],

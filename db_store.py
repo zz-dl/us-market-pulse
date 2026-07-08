@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 from contextlib import closing
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -77,6 +78,29 @@ def initialize_database(db_path: Path = DB_PATH) -> None:
                 on market_prices(symbol, trade_date);
             create index if not exists idx_backtest_signals_symbol_date
                 on backtest_signals(symbol, signal_date);
+
+            create table if not exists forecast_snapshots (
+                id integer primary key autoincrement,
+                captured_at text not null,
+                symbol text not null,
+                as_of text,
+                expected_last_session text,
+                actual_last_session text,
+                data_quality_status text,
+                direction text not null,
+                model_direction text,
+                score real,
+                model_score real,
+                live_futures_pct real,
+                opening_bias text,
+                realtime_guard_active integer not null default 0,
+                drivers_json text not null,
+                risks_json text not null,
+                market_context_json text not null
+            );
+
+            create index if not exists idx_forecast_snapshots_symbol_time
+                on forecast_snapshots(symbol, captured_at);
             """
         )
         con.commit()
@@ -287,6 +311,50 @@ def store_price_rows(symbol: str, rows: list[dict], db_path: Path = DB_PATH,
     return len(rows)
 
 
+def store_forecast_snapshot(
+    forecast: dict,
+    market_context: dict | None = None,
+    db_path: Path = DB_PATH,
+) -> int:
+    """Persist one lightweight intraday forecast observation for later review."""
+    initialize_database(db_path)
+    captured_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    data_quality = forecast.get("data_quality") or {}
+    realtime_guard = forecast.get("realtime_guard") or {}
+    with closing(connect(db_path)) as con:
+        cur = con.execute(
+            """
+            insert into forecast_snapshots (
+                captured_at, symbol, as_of, expected_last_session, actual_last_session,
+                data_quality_status, direction, model_direction, score, model_score,
+                live_futures_pct, opening_bias, realtime_guard_active,
+                drivers_json, risks_json, market_context_json
+            )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                captured_at,
+                forecast.get("symbol"),
+                forecast.get("as_of"),
+                data_quality.get("expected_last_session"),
+                data_quality.get("actual_last_session"),
+                data_quality.get("status"),
+                forecast.get("direction"),
+                forecast.get("model_direction"),
+                forecast.get("score"),
+                forecast.get("model_score"),
+                forecast.get("live_futures_pct"),
+                forecast.get("opening_bias"),
+                1 if realtime_guard.get("active") else 0,
+                json.dumps(forecast.get("drivers") or [], ensure_ascii=False),
+                json.dumps(forecast.get("risks") or [], ensure_ascii=False),
+                json.dumps(market_context or {}, ensure_ascii=False),
+            ),
+        )
+        con.commit()
+        return int(cur.lastrowid)
+
+
 def sync_symbol_dataset(
     symbol: str,
     label: str,
@@ -427,7 +495,7 @@ def database_status(db_path: Path = DB_PATH) -> dict:
     initialize_database(db_path)
     with closing(connect(db_path)) as con:
         tables = {}
-        for table in ("market_prices", "backtest_summary", "backtest_annual", "backtest_signals"):
+        for table in ("market_prices", "backtest_summary", "backtest_annual", "backtest_signals", "forecast_snapshots"):
             tables[table] = con.execute(f"select count(*) from {table}").fetchone()[0]
         symbols = [
             dict(row)

@@ -60,6 +60,42 @@ def _clip(x: float, c: float = 3.0) -> float:
     return max(-c, min(c, x))
 
 
+def _futures_guard_threshold(symbol: str) -> float:
+    # NQ volatility is naturally higher than ES, so it needs a slightly wider tripwire.
+    return -1.0 if symbol.upper() == "QQQ" else -0.75
+
+
+def _inactive_realtime_guard() -> dict:
+    return {
+        "active": False,
+        "reason": "",
+        "threshold": None,
+        "blocked_direction": "",
+        "final_direction": "",
+        "message": "",
+    }
+
+
+def _realtime_guard(symbol: str, model_direction: str, live_futures_pct: float | None) -> dict:
+    if live_futures_pct is None or model_direction != "bullish":
+        return _inactive_realtime_guard()
+    threshold = _futures_guard_threshold(symbol)
+    if live_futures_pct > threshold:
+        return _inactive_realtime_guard()
+    fut_name = "NQ(纳指)" if symbol.upper() == "QQQ" else "ES(标普)"
+    return {
+        "active": True,
+        "reason": "hard_negative_futures",
+        "threshold": threshold,
+        "blocked_direction": "bullish",
+        "final_direction": "neutral",
+        "message": (
+            f"实时 {fut_name} 期货 {live_futures_pct:+.2f}% 已跌破 {threshold:.2f}% 风险线；"
+            "日线反弹信号降级为观望。"
+        ),
+    }
+
+
 def _score_from_features(f: dict, vix_level: float | None = None) -> tuple[float, list[dict], list[str]]:
     """方向打分（基于对 SPY/QQQ 全历史真实数据的实证,双时间窗+双标的验证）：
     日级指数方向≈随机游走，能稳定>50%的边——
@@ -207,6 +243,7 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
         model_direction = "neutral"
     model_score = round(score, 3)
     signal_strength = min(82, max(35, round(48 + abs(score) * 12, 1)))
+    realtime_guard = _realtime_guard(symbol, model_direction, live_futures_pct)
 
     event_mode = event_mode or {"active": False, "status": "none"}
     if event_mode.get("active") and event_mode.get("status") == "pending":
@@ -223,6 +260,16 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
             f"{event_mode.get('name', '重大宏观事件')}尚未公布：最终收盘方向暂停判断；"
             f"基础模型为{model_direction}，仅保留开盘参考。",
         )
+    elif realtime_guard["active"]:
+        direction = "neutral"
+        final_score = 0.0
+        drivers.append({
+            "label": "实时风险保护",
+            "value": round(live_futures_pct, 3),
+            "effect": "neutral",
+            "contribution": 0.0,
+        })
+        risks.insert(0, realtime_guard["message"])
     else:
         direction = model_direction
         final_score = model_score
@@ -250,10 +297,15 @@ def build_forecast(symbol: str, label: str, rows: list[dict],
         "signal_strength": signal_strength,
         "confidence": signal_strength,
         "event_mode": event_mode,
+        "realtime_guard": realtime_guard,
         "live_futures_pct": futures_used,
         "etf_gap_proxy_pct": etf_gap_proxy,
         "etf_signal": etf_signal,
         "decision_basis": "us_next_session",
+        "backtest_scope": {
+            "includes_realtime_futures": False,
+            "description": "日线历史回测不包含实时 ES/NQ 期货、实时新闻和盘中事件冲击。",
+        },
         "vix_level": round(vix_level, 2) if vix_level is not None else None,
         "last_close": round(close, 3),
         "features": {k: round(v, 4) if isinstance(v, float) else v for k, v in f.items()},

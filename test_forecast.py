@@ -79,6 +79,25 @@ spy_rebound = build_forecast("SPY", "S&P 500", make_uptrend_with_last_drop(-0.6)
 check("SPY futures rebound drives tonight US forecast", spy_rebound["direction"] == "bullish", spy_rebound)
 check("SPY ETF pressure can be neutral separately", spy_rebound["etf_signal"]["direction"] == "neutral", spy_rebound)
 
+qqq_futures_selloff = build_forecast(
+    "QQQ",
+    "Nasdaq-100",
+    make_uptrend_with_last_drop(-1.9),
+    live_futures_pct=-1.20,
+)
+check("hard negative NQ futures block a plain bullish close forecast", qqq_futures_selloff["direction"] == "neutral", qqq_futures_selloff)
+check("hard negative NQ futures expose realtime guard", qqq_futures_selloff["realtime_guard"]["active"] is True, qqq_futures_selloff)
+check("realtime guard keeps the raw daily/futures model score", qqq_futures_selloff["model_direction"] == "bullish", qqq_futures_selloff)
+
+spy_futures_selloff = build_forecast(
+    "SPY",
+    "S&P 500",
+    make_uptrend_with_last_drop(-0.6),
+    live_futures_pct=-0.85,
+)
+check("hard negative ES futures block a plain bullish close forecast", spy_futures_selloff["direction"] == "neutral", spy_futures_selloff)
+check("hard negative ES futures expose realtime guard", spy_futures_selloff["realtime_guard"]["active"] is True, spy_futures_selloff)
+
 event_mode = {
     "active": True,
     "status": "pending",

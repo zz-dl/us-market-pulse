@@ -204,20 +204,33 @@ function strength(score,dir){
 function forecastCard(f){
   const e = ETF[f.symbol] || {idx:f.display,etf:f.symbol,code:"",fut:"期货"};
   const event = f.event_mode || {};
+  const guard = f.realtime_guard || {};
+  const quality = f.data_quality || {};
   const dir = f.direction;
-  const di = event.active
+  const di = quality.status==="stale"
+    ? {txt:"等待数据",act:"→ 最新收盘未确认，暂停买卖判断"}
+    : guard.active
+    ? {txt:"风险观望",act:"→ 实时期货转弱，暂不追多"}
+    : event.active
     ? {txt:"事件观望",act:"→ 重大数据公布前暂停收盘判断"}
     : (DIR[dir] || {txt:dir,act:""});
-  const pos = event.active ? 50 : scorePos(f.score);
+  const pos = (event.active || guard.active || quality.status==="stale") ? 50 : scorePos(f.score);
   const ds = (BT[f.symbol]||{}).direction_stats || {};
   const stat = ds[dir];
   let hit;
-  if(event.active){
+  if(quality.status==="stale"){
+    hit = `数据未确认：应到 <b>${quality.expected_last_session||"最新交易日"}</b>，当前只到 <b>${quality.actual_last_session||"无数据"}</b>；先不做买卖判断`;
+  }
+  else if(event.active){
     const raw = DIR[f.model_direction] || {txt:f.model_direction||"未知"};
     hit = `基础模型 <b>${raw.txt}</b>（模型分 ${f.model_score}，信号强度 ${f.signal_strength}）· 最终<b>暂停判断</b>`;
   }
+  else if(guard.active){
+    const raw = DIR[f.model_direction] || {txt:f.model_direction||"未知"};
+    hit = `日线/期货原始模型为 <b>${raw.txt}</b>（模型分 ${f.model_score}），但${guard.message||"实时期货触发风险保护"}；历史命中率不含实时期货`;
+  }
   else if(dir==="neutral") hit = `震荡区间 → 历史上这类<b>不交易（观望）</b>`;
-  else if(stat && stat.win_rate!=null) hit = `日线模型这类<b>${di.txt}</b>信号历史命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
+  else if(stat && stat.win_rate!=null) hit = `日线历史（不含实时期货）这类<b>${di.txt}</b>信号命中 <b>${stat.win_rate}%</b>（样本 ${stat.trades} 次）`;
   else hit = `历史命中率数据生成中`;
 
   const fut = f.live_futures_pct;
@@ -229,6 +242,8 @@ function forecastCard(f){
   }
   const eventAlert = event.active ? `<div class="event-alert"><b>⚠️ ${event.name}</b> 尚未公布
     （${event.release_time_beijing||"今晚/次日凌晨"}）。${event.reason||"事件结果可能使盘中方向反转。"}</div>` : "";
+  const guardAlert = guard.active ? `<div class="event-alert"><b>实时风险保护</b> ${guard.message||"实时期货与日线方向冲突，暂停追多。"}</div>` : "";
+  const qualityAlert = quality.status==="stale" ? `<div class="event-alert"><b>数据未确认</b> ${quality.message||"最新收盘数据尚未更新。"} 刷新确认后再看方向。</div>` : "";
   const gap = f.etf_gap_proxy_pct;
   const etfSig = f.etf_signal || {};
   let gapBadge = "";
@@ -260,7 +275,7 @@ function forecastCard(f){
     </div>
     <div class="hitline">${event.active?"事件模式":"模型分"} <b>${event.active?"观望":f.score}</b>
       ${event.active?"":` · 信号强度 ${f.signal_strength??f.confidence??strength(f.score,dir)}`}　|　${hit}</div>
-    ${eventAlert}${futBadge}${gapBadge}
+    ${qualityAlert}${eventAlert}${guardAlert}${futBadge}${gapBadge}
     <div class="metrics">
       <div class="metric"><small>美股上日 ${(f.as_of||"").slice(5)}</small><b>${pctTxt(ft.one_day)}</b></div>
       <div class="metric"><small>近20日</small><b>${pctTxt(ft.twenty_day)}</b></div>
