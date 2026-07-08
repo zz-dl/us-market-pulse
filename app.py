@@ -18,6 +18,7 @@ from daily_runner import (
 from db_store import (
     database_status,
     load_backtest_from_db,
+    load_etf_backtest,
     load_history_from_db,
     store_forecast_snapshot,
     store_price_rows,
@@ -43,7 +44,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-4-macro-event-guard"
+APP_VERSION = "mvp-5-etf-scoreboard"
 
 
 def clean_json(value):
@@ -321,11 +322,18 @@ def api_backtest():
             })
         except Exception as exc:
             errors.append({"symbol": symbol, "error": str(exc)})
+    etf_backtests = []
+    try:
+        etf_backtests = load_etf_backtest()
+    except Exception:
+        pass
     return jsonify(clean_json({
         "ok": not errors,
         "beijing_time": beijing_now(),
         "method": "信号由第 t 日收盘前已知的日线特征生成，验证第 t+1 日收盘涨跌，不偷看未来。",
         "backtests": backtests,
+        "etf_backtests": etf_backtests,
+        "etf_method": "ETF口径:信号日后首个A股日收盘买入,按退出规则卖出,扣双边成本0.12%。唯一和实际盈亏对齐的记分牌。",
         "errors": errors,
     }))
 

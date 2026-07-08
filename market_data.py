@@ -222,6 +222,64 @@ def fetch_futures_change(symbol: str, timeout: float = 8.0) -> float | None:
         return None
 
 
+# 你的两只场内 QDII ETF(腾讯行情代码)。溢价是 QDII 盈亏的最大单一噪音源:
+# 单日溢价变化 ±1-2pp,远大于模型的方向边(~0.05-0.17%/笔),必须监控。
+ETF_PREMIUM_CODES = {
+    "QQQ": "sz159941",   # 广发纳指ETF
+    "SPY": "sh513500",   # 博时标普500ETF
+}
+
+
+def _safe_float(value) -> float | None:
+    try:
+        v = float(str(value).strip())
+        return v if v == v else None  # NaN guard
+    except (TypeError, ValueError):
+        return None
+
+
+def fetch_etf_premium(codes: dict | None = None, timeout: float = 8.0) -> dict:
+    """实时抓取场内 ETF 的价格/IOPV净值/溢价率(腾讯行情)。
+    字段下标经真实返回验证(2026-07-08):parts[3]=价格, parts[77]=溢价率%, parts[78]=实时IOPV。
+    双重校验:parts[77] 与 price/parts[78]-1 一致才采信。失败的标的不出现在结果里。"""
+    codes = codes or ETF_PREMIUM_CODES
+    query = ",".join(codes.values())
+    out: dict = {}
+    try:
+        r = requests.get(f"http://qt.gtimg.cn/q={query}", timeout=timeout,
+                         headers={"User-Agent": "Mozilla/5.0"})
+        text = r.content.decode("gbk", "replace")
+    except Exception:
+        return out
+    quotes = {}
+    for line in text.strip().split(";"):
+        line = line.strip()
+        if "=" not in line:
+            continue
+        tcode = line.split("=")[0].replace("v_", "")
+        parts = line.split("~")
+        if len(parts) < 80:
+            continue
+        price = _safe_float(parts[3])
+        premium = _safe_float(parts[77])
+        nav = _safe_float(parts[78])
+        if not price or not nav or premium is None:
+            continue
+        implied = (price / nav - 1.0) * 100.0
+        if abs(implied - premium) > 1.0:   # 字段漂移防护:两口径对不上就不采信
+            continue
+        quotes[tcode] = {
+            "name": parts[1],
+            "price": price,
+            "nav": nav,
+            "premium_pct": round(premium, 2),
+        }
+    for symbol, tcode in codes.items():
+        if tcode in quotes:
+            out[symbol] = {**quotes[tcode], "etf_code": tcode.lstrip("shz")}
+    return out
+
+
 def _num(value: str) -> float:
     return float(str(value).strip())
 

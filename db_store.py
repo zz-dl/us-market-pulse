@@ -101,6 +101,34 @@ def initialize_database(db_path: Path = DB_PATH) -> None:
 
             create index if not exists idx_forecast_snapshots_symbol_time
                 on forecast_snapshots(symbol, captured_at);
+
+            -- QDII ETF 溢价历史(本地 14:30 推送任务采集;溢价是 QDII 盈亏最大单一噪音源)
+            create table if not exists etf_premium_history (
+                etf_code text not null,
+                trade_date text not null,
+                captured_at text not null,
+                price real not null,
+                nav real not null,
+                premium_pct real not null,
+                primary key (etf_code, trade_date)
+            );
+
+            -- ETF 口径真实盈亏回测(信号→按用户实际操作交易ETF,扣双边成本;唯一和钱包对齐的记分牌)
+            create table if not exists etf_backtest_summary (
+                us_symbol text not null,
+                etf_code text not null,
+                exit_rule text not null,
+                window text not null,
+                trades integer not null,
+                gross_avg_pct real not null,
+                net_avg_pct real not null,
+                net_win_rate real not null,
+                cum_net_pct real not null,
+                stdev_pct real not null,
+                cost_pct real not null,
+                generated_at text not null,
+                primary key (us_symbol, etf_code, exit_rule, window)
+            );
             """
         )
         con.commit()
@@ -353,6 +381,123 @@ def store_forecast_snapshot(
         )
         con.commit()
         return int(cur.lastrowid)
+
+
+def store_etf_premium(quotes: dict, trade_date: str | None = None, db_path: Path = DB_PATH) -> int:
+    """把 fetch_etf_premium 的结果按交易日落库(同日重复采集时覆盖,保留最新一次)。"""
+    if not quotes:
+        return 0
+    initialize_database(db_path)
+    trade_date = trade_date or date.today().isoformat()
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with closing(connect(db_path)) as con:
+        con.executemany(
+            """
+            insert into etf_premium_history (etf_code, trade_date, captured_at, price, nav, premium_pct)
+            values (?, ?, ?, ?, ?, ?)
+            on conflict(etf_code, trade_date) do update set
+                captured_at = excluded.captured_at, price = excluded.price,
+                nav = excluded.nav, premium_pct = excluded.premium_pct
+            """,
+            [
+                (q["etf_code"], trade_date, now, q["price"], q["nav"], q["premium_pct"])
+                for q in quotes.values()
+            ],
+        )
+        con.commit()
+    return len(quotes)
+
+
+def load_premium_history(etf_code: str, limit: int = 10, db_path: Path = DB_PATH) -> list[dict]:
+    """最近 N 个交易日的溢价记录,按日期升序。"""
+    initialize_database(db_path)
+    with closing(connect(db_path)) as con:
+        rows = con.execute(
+            """
+            select trade_date, price, nav, premium_pct from etf_premium_history
+            where etf_code = ? order by trade_date desc limit ?
+            """,
+            (etf_code, limit),
+        ).fetchall()
+    return [dict(r) for r in reversed(rows)]
+
+
+def evaluate_premium_gate(etf_code: str, current_premium: float,
+                          db_path: Path = DB_PATH) -> dict:
+    """溢价卡口:近3个交易日溢价膨胀 >2pp → block(禁买);
+    溢价绝对值 >8% → warn。数据不足时只按绝对值判断。
+    实证依据(2026-07-08):159941 溢价单日波动可达 ±2pp,远大于模型方向边。"""
+    history = load_premium_history(etf_code, limit=5, db_path=db_path)
+    expansion = None
+    if len(history) >= 3:
+        expansion = round(current_premium - history[-3]["premium_pct"], 2)
+    level, notes = "ok", []
+    if expansion is not None and expansion > 2.0:
+        level = "block"
+        notes.append(f"溢价3日膨胀 +{expansion:.1f}pp(>{history[-3]['premium_pct']:.1f}%→{current_premium:.1f}%),泡沫加厚期,禁买")
+    if current_premium > 8.0:
+        level = "block" if level == "block" else "warn"
+        notes.append(f"溢价 {current_premium:.1f}% 处历史高位,买入≈赌泡沫,溢价回落可吞掉数倍于方向边的收益")
+    return {
+        "etf_code": etf_code,
+        "premium_pct": current_premium,
+        "expansion_3d_pp": expansion,
+        "level": level,
+        "message": ";".join(notes),
+    }
+
+
+def store_etf_backtest(rows: list[dict], db_path: Path = DB_PATH) -> int:
+    if not rows:
+        return 0
+    initialize_database(db_path)
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with closing(connect(db_path)) as con:
+        con.executemany(
+            """
+            insert into etf_backtest_summary (
+                us_symbol, etf_code, exit_rule, window, trades, gross_avg_pct,
+                net_avg_pct, net_win_rate, cum_net_pct, stdev_pct, cost_pct, generated_at
+            )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict(us_symbol, etf_code, exit_rule, window) do update set
+                trades = excluded.trades, gross_avg_pct = excluded.gross_avg_pct,
+                net_avg_pct = excluded.net_avg_pct, net_win_rate = excluded.net_win_rate,
+                cum_net_pct = excluded.cum_net_pct, stdev_pct = excluded.stdev_pct,
+                cost_pct = excluded.cost_pct, generated_at = excluded.generated_at
+            """,
+            [
+                (r["us_symbol"], r["etf_code"], r["exit_rule"], r["window"], r["trades"],
+                 r["gross_avg_pct"], r["net_avg_pct"], r["net_win_rate"], r["cum_net_pct"],
+                 r["stdev_pct"], r["cost_pct"], now)
+                for r in rows
+            ],
+        )
+        con.commit()
+    return len(rows)
+
+
+def load_etf_backtest(db_path: Path = DB_PATH) -> list[dict]:
+    initialize_database(db_path)
+    with closing(connect(db_path)) as con:
+        rows = con.execute(
+            "select * from etf_backtest_summary order by us_symbol, exit_rule, window"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def load_signal_rows(symbol: str, db_path: Path = DB_PATH) -> list[dict]:
+    """回测信号(供 ETF 口径盈亏对账用)。"""
+    initialize_database(db_path)
+    with closing(connect(db_path)) as con:
+        rows = con.execute(
+            """
+            select signal_date, next_date, direction, next_return_pct
+            from backtest_signals where symbol = ? order by signal_date
+            """,
+            (symbol.upper(),),
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def sync_symbol_dataset(

@@ -353,7 +353,11 @@ def run_backtest(symbol: str, label: str, rows: list[dict], min_history: int = 2
             annual[year]["returns"].append(ret * predicted_sign)
 
     wins = sum(1 for s in actionable if s["win"])
-    returns = [s["next_return_pct"] for s in actionable]
+    # 按预测方向签名的策略收益(bearish 日应取 -ret;此前未签名,含 bearish 时 avg 口径失真)
+    returns = [
+        s["next_return_pct"] * (1 if s["direction"] == "bullish" else -1)
+        for s in actionable
+    ]
     annual_rows = []
     for year, data in sorted(annual.items()):
         annual_rows.append({
