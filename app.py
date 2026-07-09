@@ -28,6 +28,7 @@ from db_store import (
 )
 from forecast import build_forecast, run_backtest
 from market_data import (
+    detect_earnings_event_mode,
     detect_macro_event_mode,
     detect_news_risk_flags,
     ensure_history,
@@ -47,7 +48,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-6-premium-gate-web"
+APP_VERSION = "mvp-7-earnings-event"
 
 
 def clean_json(value):
@@ -145,6 +146,15 @@ def _build_market_context():
     }
     ctx["risk_flags"] = detect_news_risk_flags(ctx["news"])
     ctx["macro_event"] = detect_macro_event_mode(news, now=datetime.now(BEIJING_TZ))
+    # 权重股财报观望:宏观事件优先;无宏观事件时,盘前财报同样触发事件模式
+    try:
+        earn = detect_earnings_event_mode(now=datetime.now(BEIJING_TZ))
+    except Exception:
+        earn = {"event_mode": {"active": False, "status": "none"}, "notes": [], "reporters": []}
+    ctx["earnings_reporters"] = earn["reporters"]
+    ctx["earnings_notes"] = earn["notes"]
+    if not ctx["macro_event"].get("active") and earn["event_mode"].get("active"):
+        ctx["macro_event"] = earn["event_mode"]
     return ctx, vix_now
 
 
@@ -161,6 +171,7 @@ def _macro_risk_notes(ctx) -> list[str]:
         notes.append(f"美元指数大涨 +{dxy['chg_pct']:.2f}% → 历史上美元急升日次日偏弱（50-53%）")
     if ctx.get("risk_flags"):
         notes.append("今日新闻含风险主题：" + "、".join(ctx["risk_flags"]) + " → 留意波动放大")
+    notes.extend(ctx.get("earnings_notes") or [])   # 盘后权重股财报提示(不暂停方向)
     return notes
 
 

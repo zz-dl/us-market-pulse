@@ -61,6 +61,81 @@ _RESOLVED_EVENT_PATTERN = re.compile(
 )
 
 
+# 权重股财报观望:纳指/标普前十大权重(高度重合)+ 摩根大通(财报季开锣标志)。
+# 单家权重股财报可拉动指数1-2%,公布前期货读数随时作废 → 盘前公布=事件观望,盘后公布=风险提示。
+MEGA_CAP_EARNINGS = {
+    "NVDA": "英伟达", "MSFT": "微软", "AAPL": "苹果", "AMZN": "亚马逊",
+    "GOOGL": "谷歌", "GOOG": "谷歌", "META": "Meta", "AVGO": "博通",
+    "TSLA": "特斯拉", "NFLX": "奈飞", "COST": "好市多", "JPM": "摩根大通",
+}
+_earnings_cache: dict = {}
+
+
+def fetch_mega_cap_earnings(us_date: str, timeout: float = 8.0) -> list[dict] | None:
+    """当日美股财报日历中命中权重股监控表的条目(Nasdaq公共API,需浏览器UA)。
+    返回 [{'symbol','cn','time'}];失败返回 None(与"当天无权重股财报"=[] 区分开)。
+    进程内按日期缓存,避免每次页面加载都打外部API。"""
+    if us_date in _earnings_cache:
+        return _earnings_cache[us_date]
+    url = f"https://api.nasdaq.com/api/calendar/earnings?date={us_date}"
+    try:
+        r = requests.get(url, timeout=timeout, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept": "application/json",
+        })
+        rows = ((r.json().get("data") or {}).get("rows")) or []
+    except Exception:
+        return None
+    hits = [
+        {"symbol": row["symbol"], "cn": MEGA_CAP_EARNINGS[row["symbol"]],
+         "time": row.get("time") or "time-not-supplied"}
+        for row in rows if row.get("symbol") in MEGA_CAP_EARNINGS
+    ]
+    _earnings_cache[us_date] = hits
+    return hits
+
+
+def detect_earnings_event_mode(now: datetime | None = None,
+                               reporters: list[dict] | None = None) -> dict:
+    """今夜美股时段是否有权重股财报。reporters 可注入(测试用),否则实时抓取。
+    盘前(time-pre-market)/时间未定 → 公布落在今夜收盘前 → event_mode(暂停收盘方向判断);
+    盘后(time-after-hours) → 公布在今夜收盘后,不暂停,只给风险提示(盘中博弈波动+次日跳空)。
+    返回 {'event_mode': dict, 'notes': [str], 'reporters': [dict]}。"""
+    now = now or datetime.now()
+    inactive = {"event_mode": _inactive_event_mode(), "notes": [], "reporters": []}
+    # 今夜美股时段的日历日≈北京时间减6小时所在日期(美东凌晨~傍晚都映射到当日)
+    us_date = (now - timedelta(hours=6)).date()
+    if us_date.weekday() >= 5:
+        return inactive
+    reporters = reporters if reporters is not None else fetch_mega_cap_earnings(us_date.isoformat())
+    if not reporters:
+        return inactive
+
+    pre = [r for r in reporters if r["time"] != "time-after-hours"]
+    post = [r for r in reporters if r["time"] == "time-after-hours"]
+    notes = []
+    if post:
+        names = "、".join(f"{r['cn']}({r['symbol']})" for r in post)
+        notes.append(
+            f"今夜盘后财报:{names} → 公布在收盘之后,不直接决定今晚收盘,"
+            "但盘中随博弈波动放大,且次日大概率跳空"
+        )
+    event_mode = _inactive_event_mode()
+    if pre:
+        names = "、".join(f"{r['cn']}({r['symbol']})" for r in pre)
+        undecided = any(r["time"] == "time-not-supplied" for r in pre)
+        event_mode = {
+            "active": True,
+            "status": "pending",
+            "name": f"权重股财报:{names}",
+            "reason": ("单家权重股财报可拉动指数1-2%,公布前期货读数不能代表最终收盘方向。"
+                       + ("(公布时间未定,保守按盘前处理)" if undecided else "")),
+            "release_time_beijing": "今晚约20:30(美股盘前)" if not undecided else "今晚至次日凌晨",
+            "source": "earnings_calendar",
+        }
+    return {"event_mode": event_mode, "notes": notes, "reporters": reporters}
+
+
 def _inactive_event_mode() -> dict:
     return {
         "active": False,

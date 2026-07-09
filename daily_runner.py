@@ -10,6 +10,7 @@ from typing import Callable
 from db_store import load_backtest_from_db, store_price_rows, upsert_vix_rows
 from forecast import build_forecast
 from market_data import (
+    detect_earnings_event_mode,
     detect_macro_event_mode,
     ensure_history,
     fetch_futures_change,
@@ -93,6 +94,12 @@ def create_daily_snapshot(universe: dict, refresh: bool = True, now: datetime | 
         vix_now = fetch_vix_level()
         news = fetch_news_headlines(10)
         event_mode = detect_macro_event_mode(news, now=run_at)
+        if not event_mode.get("active"):
+            # 宏观数据无事件时,再看今夜有无权重股财报(盘前公布→同样暂停方向判断)
+            try:
+                event_mode = detect_earnings_event_mode(now=run_at)["event_mode"]
+            except Exception:
+                pass
 
         for symbol, info in universe.items():
             try:
