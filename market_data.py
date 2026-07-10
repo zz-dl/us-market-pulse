@@ -189,19 +189,43 @@ def detect_macro_event_mode(headlines: list[dict], now: datetime | None = None) 
     return _inactive_event_mode()
 
 
+def _latest_vs_prev_close(res: dict) -> tuple[float, float] | None:
+    """从 Yahoo chart 结果取 (最新价, 上一交易日收盘)。
+    上一收盘必须按日期选,不能取 closes[-2]:当天的 live bar 在部分节点缺失或 close 为
+    null 时,closes[-2] 会取到前天收盘,涨跌%就变成"昨天全天的行情"且整天不动。"""
+    meta = res.get("meta") or {}
+    px = meta.get("regularMarketPrice")
+    rmt = meta.get("regularMarketTime")
+    gmtoff = meta.get("gmtoffset") or 0
+    ts = res.get("timestamp") or []
+    closes = (res.get("indicators", {}).get("quote", [{}])[0].get("close")) or []
+    bars = [(t, c) for t, c in zip(ts, closes) if c is not None]
+    if px is None or not bars:
+        return None
+    if rmt:
+        tz = timezone(timedelta(seconds=gmtoff))
+        cur_day = datetime.fromtimestamp(rmt, tz=tz).date()
+        prev = [c for t, c in bars if datetime.fromtimestamp(t, tz=tz).date() < cur_day]
+        if prev:
+            return float(px), float(prev[-1])
+    if len(bars) >= 2:
+        return float(px), float(bars[-2][1])
+    return None
+
+
 def fetch_quote_change(symbol: str, timeout: float = 8.0) -> dict | None:
-    """{'price','chg_pct'}:最新价 vs 上一交易日收盘(日线倒数第二根)。失败 None。"""
+    """{'price','chg_pct'}:最新价 vs 上一交易日收盘(按日期选)。失败 None。"""
     import urllib.parse
     url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
            + urllib.parse.quote(symbol) + "?range=7d&interval=1d")
     try:
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
         res = r.json()["chart"]["result"][0]
-        px = res["meta"].get("regularMarketPrice")
-        closes = [c for c in (res["indicators"]["quote"][0]["close"] or []) if c is not None]
-        if px is None or len(closes) < 2 or not closes[-2]:
+        pair = _latest_vs_prev_close(res)
+        if not pair or not pair[1]:
             return None
-        return {"price": float(px), "chg_pct": (float(px) / closes[-2] - 1.0) * 100.0}
+        px, prev_close = pair
+        return {"price": px, "chg_pct": (px / prev_close - 1.0) * 100.0}
     except Exception:
         return None
 
@@ -278,7 +302,7 @@ def fetch_vix_history_rows(days_range: str = "1mo", timeout: float = 10.0) -> li
 
 def fetch_futures_change(symbol: str, timeout: float = 8.0) -> float | None:
     """返回该标的对应指数期货相对上一交易日结算的涨跌%(实时,如北京14:30)。
-    SPY→ES=F, QQQ→NQ=F。失败返回 None。涨跌 = 最新价 / 上一日线收盘(倒数第二根)。"""
+    SPY→ES=F, QQQ→NQ=F。失败返回 None。涨跌 = 最新价 / 上一交易日收盘(按日期选)。"""
     import urllib.parse
     fsym = FUTURES_SYMBOLS.get(symbol.upper())
     if not fsym:
@@ -288,11 +312,11 @@ def fetch_futures_change(symbol: str, timeout: float = 8.0) -> float | None:
     try:
         r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
         res = r.json()["chart"]["result"][0]
-        px = res["meta"].get("regularMarketPrice")
-        closes = [c for c in (res["indicators"]["quote"][0]["close"] or []) if c is not None]
-        if px is None or len(closes) < 2:
+        pair = _latest_vs_prev_close(res)
+        if not pair or not pair[1]:
             return None
-        return (px / closes[-2] - 1.0) * 100.0
+        px, prev_close = pair
+        return (px / prev_close - 1.0) * 100.0
     except Exception:
         return None
 
