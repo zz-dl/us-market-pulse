@@ -48,7 +48,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-7-earnings-event"
+APP_VERSION = "mvp-8-futures-basis"
 
 
 def clean_json(value):
