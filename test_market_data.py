@@ -1,6 +1,14 @@
 from datetime import date, datetime
 
-from market_data import _latest_vs_prev_close, detect_macro_event_mode, latest_bar, parse_stooq_csv, rows_to_csv_text
+from market_data import (
+    _latest_vs_prev_close,
+    _parse_tencent_klines,
+    detect_macro_event_mode,
+    latest_bar,
+    merge_history_rows,
+    parse_stooq_csv,
+    rows_to_csv_text,
+)
 
 
 def check(label, cond, detail=""):
@@ -58,5 +66,33 @@ px, prev = _latest_vs_prev_close(_null_close)
 check("prev close correct when live bar close is null", prev == 29937.0, prev)
 
 check("no bars returns None", _latest_vs_prev_close({"meta": {"regularMarketPrice": 1.0}}) is None)
+
+# 腾讯美股日K兜底(2026-07-15 线上bug:Yahoo对已收盘的07-14 bar返回null close,
+# 全量历史只到07-13,数据被判stale冻结方向;Stooq兜底又换了JS反爬,双双失效)。
+# K线字段顺序为 [日期, 开, 收, 高, 低, 量],真实结构取自 usSPY.AM qfqday。
+_tencent_klines = [
+    ["2026-07-13", "753.10", "749.17", "754.29", "748.30", "48967332.00"],
+    ["2026-07-14", "750.91", "751.83", "753.34", "748.66", "35143138"],
+    ["bad-date", "1", "2", "3", "4", "5"],
+    ["2026-07-15", "751.83", "751.83", "753.34", "748.66", None],
+]
+_trows = _parse_tencent_klines(_tencent_klines)
+check("tencent rows parsed, bad rows skipped", len(_trows) == 3, len(_trows))
+check("tencent field order date/open/close/high/low", _trows[1]["close"] == 751.83, _trows[1])
+check("tencent high mapped correctly", _trows[1]["high"] == 753.34, _trows[1])
+check("tencent low mapped correctly", _trows[1]["low"] == 748.66, _trows[1])
+check("tencent null volume treated as 0", _trows[2]["volume"] == 0, _trows[2])
+
+# 合并规则:已有日期以缓存(Yahoo原始价)为准,腾讯只补缺的日期 —— qfq前复权
+# 在除息日前的历史值会整体下移,不能覆盖已有的未复权历史。
+_cached = [
+    {"date": date(2026, 7, 10), "open": 1, "high": 1, "low": 1, "close": 754.95, "volume": 1},
+    {"date": date(2026, 7, 13), "open": 1, "high": 1, "low": 1, "close": 749.17, "volume": 1},
+]
+_merged = merge_history_rows(_cached, _trows)
+check("merge keeps cached value on duplicate date", _merged[1]["close"] == 749.17, _merged[1])
+check("merge appends missing dates", _merged[-1]["date"] == date(2026, 7, 15), _merged[-1])
+check("merge stays date-sorted", [r["date"] for r in _merged] == sorted(r["date"] for r in _merged))
+check("merge row count", len(_merged) == 4, len(_merged))
 
 print("ALL TESTS PASSED")

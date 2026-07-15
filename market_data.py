@@ -443,12 +443,38 @@ def load_cached_history(symbol: str) -> list[dict]:
     return parse_stooq_csv(path.read_text(encoding="utf-8"))
 
 
+def expected_last_us_session() -> str:
+    """最近一个『已收盘』的美股交易日(美东16:00后算当天,否则前一交易日;周末回退)。"""
+    et = datetime.now(timezone.utc) - timedelta(hours=5)   # 近似美东(忽略夏令时,偏保守)
+    d = et.date()
+    if et.hour < 16:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d.isoformat()
+
+
 def download_symbol_history(symbol: str, timeout: int = 20) -> dict:
+    """Yahoo → Stooq → 腾讯,且 Yahoo/Stooq 成功但缺最新收盘时用腾讯补漏。
+    2026-07-15 实测:Yahoo 对已收盘的 07-14 bar 返回 null close(整根被跳过,
+    历史停在 07-13 → 线上判 stale 冻结方向),Stooq 同期换上 JS 反爬只返回验证页。"""
     symbol = symbol.upper()
+    meta = None
     try:
-        return download_symbol_history_yahoo(symbol, timeout=timeout)
+        meta = download_symbol_history_yahoo(symbol, timeout=timeout)
     except Exception:
-        return download_symbol_history_stooq(symbol, timeout=timeout)
+        try:
+            meta = download_symbol_history_stooq(symbol, timeout=timeout)
+        except Exception:
+            meta = None
+    if meta and meta["end"] >= expected_last_us_session():
+        return meta
+    try:
+        return download_symbol_history_tencent(symbol, base_meta=meta, timeout=timeout)
+    except Exception:
+        if meta:
+            return meta
+        raise
 
 
 def download_symbol_history_yahoo(symbol: str, timeout: int = 20) -> dict:
@@ -517,6 +543,79 @@ def download_symbol_history_stooq(symbol: str, timeout: int = 20) -> dict:
         "symbol": symbol,
         "source": "stooq",
         "url": url,
+        "rows": len(rows),
+        "start": rows[0]["date"].isoformat(),
+        "end": rows[-1]["date"].isoformat(),
+        "saved_to": str(path),
+        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+# 腾讯美股日K代码(SPY 被腾讯归在 AMEX,用 .N 只会返回单根K线)
+TENCENT_KLINE_SYMBOLS = {
+    "SPY": "usSPY.AM",
+    "QQQ": "usQQQ.OQ",
+}
+
+
+def _parse_tencent_klines(klines: list) -> list[dict]:
+    """腾讯K线 [日期,开,收,高,低,量,...] → 标准行。坏行跳过,量缺失记0。"""
+    rows: list[dict] = []
+    for k in klines or []:
+        try:
+            rows.append({
+                "date": datetime.strptime(str(k[0]), "%Y-%m-%d").date(),
+                "open": float(k[1]),
+                "close": float(k[2]),
+                "high": float(k[3]),
+                "low": float(k[4]),
+                "volume": int(float(k[5])) if k[5] not in (None, "") else 0,
+            })
+        except Exception:
+            continue
+    rows.sort(key=lambda r: r["date"])
+    return rows
+
+
+def fetch_tencent_daily_rows(symbol: str, count: int = 320, timeout: float = 20.0) -> list[dict]:
+    """腾讯美股日K(近 count 根)。返回标准行;不支持的标的/失败返回 []。"""
+    code = TENCENT_KLINE_SYMBOLS.get(symbol.upper())
+    if not code:
+        return []
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/usfqkline/get?param={code},day,,,{count},qfq"
+    try:
+        r = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
+        data = (r.json().get("data") or {}).get(code) or {}
+    except Exception:
+        return []
+    return _parse_tencent_klines(data.get("qfqday") or data.get("day") or [])
+
+
+def merge_history_rows(cached: list[dict], extra: list[dict]) -> list[dict]:
+    """已有日期以 cached(Yahoo未复权价)为准,extra 只补缺的日期。
+    腾讯 qfq 前复权会下移除息日前的历史值,覆盖已有历史会造成价格拼缝。"""
+    have = {r["date"] for r in cached}
+    merged = list(cached) + [r for r in extra if r["date"] not in have]
+    merged.sort(key=lambda r: r["date"])
+    return merged
+
+
+def download_symbol_history_tencent(symbol: str, base_meta: dict | None = None,
+                                    timeout: float = 20.0) -> dict:
+    """腾讯日K与本地缓存合并写回CSV。Yahoo缺最新bar时是补漏,Yahoo/Stooq全挂时是兜底。"""
+    symbol = symbol.upper()
+    fresh = fetch_tencent_daily_rows(symbol, timeout=timeout)
+    if not fresh:
+        raise RuntimeError(f"Tencent returned no kline for {symbol}")
+    rows = merge_history_rows(load_cached_history(symbol), fresh)
+    if len(rows) < 100:
+        raise RuntimeError(f"Tencent merge produced too few rows for {symbol}")
+    path = price_path(symbol)
+    path.write_text(rows_to_csv_text(rows), encoding="utf-8")
+    source = (base_meta["source"] + "+tencent") if base_meta else "tencent_kline"
+    return {
+        "symbol": symbol,
+        "source": source,
         "rows": len(rows),
         "start": rows[0]["date"].isoformat(),
         "end": rows[-1]["date"].isoformat(),

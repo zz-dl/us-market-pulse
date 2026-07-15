@@ -6,8 +6,6 @@ from math import isfinite
 
 from flask import Flask, jsonify, request, send_from_directory
 
-from datetime import timedelta, timezone as _tz
-
 from daily_runner import (
     BEIJING_TZ,
     create_daily_snapshot,
@@ -32,6 +30,7 @@ from market_data import (
     detect_macro_event_mode,
     detect_news_risk_flags,
     ensure_history,
+    expected_last_us_session,
     fetch_etf_premium,
     fetch_futures_change,
     fetch_news_headlines,
@@ -48,7 +47,7 @@ UNIVERSE = {
 }
 
 app = Flask(__name__, static_folder="static")
-APP_VERSION = "mvp-8-futures-basis"
+APP_VERSION = "mvp-9-tencent-fallback"
 
 
 def clean_json(value):
@@ -175,17 +174,6 @@ def _macro_risk_notes(ctx) -> list[str]:
     return notes
 
 
-def _expected_last_us_session() -> str:
-    """最近一个『已收盘』的美股交易日(美东16:00后算当天,否则前一交易日;周末回退)。"""
-    et = datetime.now(_tz.utc) - timedelta(hours=5)   # 近似美东(忽略夏令时,偏保守)
-    d = et.date()
-    if et.hour < 16:
-        d -= timedelta(days=1)
-    while d.weekday() >= 5:
-        d -= timedelta(days=1)
-    return d.isoformat()
-
-
 def _last_row_date(rows) -> str:
     last = rows[-1]["date"]
     return last.isoformat() if hasattr(last, "isoformat") else str(last)[:10]
@@ -228,7 +216,7 @@ def api_forecast():
     errors = []
     market_context, vix_now = _build_market_context()
     macro_notes = _macro_risk_notes(market_context)
-    expected = _expected_last_us_session()
+    expected = expected_last_us_session()
     # QDII 溢价卡口(盈亏最大单一噪音源):实时抓取,失败静默降级(Render 若被拦则不显示)
     premiums = {}
     try:
